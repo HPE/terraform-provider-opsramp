@@ -1,0 +1,48 @@
+terraform {
+  required_providers {
+    opsramp = {
+      source  = "github.com/HPE/terraform-provider-opsramp"
+      version = ">=0.1.0"
+    }
+  }
+}
+
+provider "opsramp" {
+  client_id     = "*****"
+  client_secret = "*****"
+  endpoint      = "*****"
+  tenant        = "*****"
+}
+
+# Create individual resources
+resource "opsramp_resource" "resource1" {
+  resource_name = "Test1"
+  resource_type = "Server"
+}
+
+resource "opsramp_resource" "resource2" {
+  resource_name = "Test2"
+  resource_type = "Server"
+}
+
+resource "opsramp_resource" "resource3" {
+  resource_name = "Test3"
+  resource_type = "Server"
+}
+
+resource "opsramp_device_group" "device_group_root" {
+  name      = "Test Groups"
+  resources = [opsramp_resource.resource1.uuid]
+}
+
+resource "opsramp_device_group" "device_group_resources" {
+  parent    = opsramp_device_group.device_group_root.id
+  name      = "Test Resources"
+  resources = [opsramp_resource.resource2.uuid]
+}
+
+resource "opsramp_device_group" "device_group_query" {
+  parent       = opsramp_device_group.device_group_root.id
+  name         = "Test Queries"
+  search_query = format("resourceType = \"Server\" AND uuid = \"%s\"", opsramp_resource.resource3.uuid)
+}

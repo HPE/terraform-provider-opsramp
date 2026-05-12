@@ -1,0 +1,127 @@
+terraform-provider-opsramp
+Copyright Hewlett Packard Enterprise Development LP
+
+This product includes software developed at and by third parties, listed below.
+A copy of each third-party license is available in the project's dependency
+cache or at the URL indicated.
+
+-------------------------------------------------------------------------------
+github.com/hashicorp/terraform-plugin-framework
+Copyright (c) HashiCorp, Inc.
+License: Mozilla Public License 2.0 (MPL-2.0)
+https://github.com/hashicorp/terraform-plugin-framework/blob/main/LICENSE
+
+github.com/hashicorp/terraform-plugin-framework-validators
+Copyright (c) HashiCorp, Inc.
+License: Mozilla Public License 2.0 (MPL-2.0)
+https://github.com/hashicorp/terraform-plugin-framework-validators/blob/main/LICENSE
+
+github.com/hashicorp/terraform-plugin-go
+Copyright (c) HashiCorp, Inc.
+License: Mozilla Public License 2.0 (MPL-2.0)
+https://github.com/hashicorp/terraform-plugin-go/blob/main/LICENSE
+
+github.com/hashicorp/terraform-plugin-log
+Copyright (c) HashiCorp, Inc.
+License: Mozilla Public License 2.0 (MPL-2.0)
+https://github.com/hashicorp/terraform-plugin-log/blob/main/LICENSE
+
+github.com/hashicorp/terraform-registry-address
+Copyright (c) HashiCorp, Inc.
+License: Mozilla Public License 2.0 (MPL-2.0)
+https://github.com/hashicorp/terraform-registry-address/blob/main/LICENSE
+
+github.com/hashicorp/terraform-svchost
+Copyright (c) HashiCorp, Inc.
+License: Mozilla Public License 2.0 (MPL-2.0)
+https://github.com/hashicorp/terraform-svchost/blob/main/LICENSE
+
+github.com/hashicorp/go-hclog
+Copyright (c) HashiCorp, Inc.
+License: MIT
+https://github.com/hashicorp/go-hclog/blob/main/LICENSE
+
+github.com/hashicorp/go-plugin
+Copyright (c) HashiCorp, Inc.
+License: Mozilla Public License 2.0 (MPL-2.0)
+https://github.com/hashicorp/go-plugin/blob/main/LICENSE
+
+github.com/hashicorp/go-uuid
+Copyright (c) HashiCorp, Inc.
+License: Mozilla Public License 2.0 (MPL-2.0)
+https://github.com/hashicorp/go-uuid/blob/main/LICENSE
+
+github.com/hashicorp/yamux
+Copyright (c) HashiCorp, Inc.
+License: Mozilla Public License 2.0 (MPL-2.0)
+https://github.com/hashicorp/yamux/blob/master/LICENSE
+
+github.com/golang/protobuf
+Copyright (c) The Go Authors
+License: BSD 3-Clause
+https://github.com/golang/protobuf/blob/master/LICENSE
+
+github.com/fatih/color
+Copyright (c) 2013 Fatih Arslan
+License: MIT
+https://github.com/fatih/color/blob/main/LICENSE.md
+
+github.com/mattn/go-colorable
+Copyright (c) 2016 Yasuhiro Matsumoto
+License: MIT
+https://github.com/mattn/go-colorable/blob/master/LICENSE
+
+github.com/mattn/go-isatty
+Copyright (c) Yasuhiro Matsumoto
+License: MIT
+https://github.com/mattn/go-isatty/blob/master/LICENSE
+
+github.com/mitchellh/go-testing-interface
+Copyright (c) 2016 Mitchell Hashimoto
+License: MIT
+https://github.com/mitchellh/go-testing-interface/blob/master/LICENSE
+
+github.com/oklog/run
+Copyright (c) 2016 Peter Bourgon
+License: Apache License 2.0
+https://github.com/oklog/run/blob/main/LICENSE
+
+github.com/vmihailenco/msgpack/v5
+Copyright (c) 2013 The Go Authors. All rights reserved.
+License: BSD 2-Clause
+https://github.com/vmihailenco/msgpack/blob/master/LICENSE
+
+github.com/vmihailenco/tagparser/v2
+Copyright (c) 2019 The Go Authors. All rights reserved.
+License: BSD 2-Clause
+https://github.com/vmihailenco/tagparser/blob/master/LICENSE
+
+golang.org/x/net
+Copyright (c) The Go Authors
+License: BSD 3-Clause
+https://cs.opensource.google/go/x/net/+/master:LICENSE
+
+golang.org/x/sys
+Copyright (c) The Go Authors
+License: BSD 3-Clause
+https://cs.opensource.google/go/x/sys/+/master:LICENSE
+
+golang.org/x/text
+Copyright (c) The Go Authors
+License: BSD 3-Clause
+https://cs.opensource.google/go/x/text/+/master:LICENSE
+
+google.golang.org/grpc
+Copyright (c) The gRPC Authors
+License: Apache License 2.0
+https://github.com/grpc/grpc-go/blob/master/LICENSE
+
+google.golang.org/protobuf
+Copyright (c) The Go Authors
+License: BSD 3-Clause
+https://github.com/protocolbuffers/protobuf-go/blob/master/LICENSE
+
+google.golang.org/genproto/googleapis/rpc
+Copyright (c) The Go Authors
+License: Apache License 2.0
+https://github.com/googleapis/go-genproto/blob/main/LICENSE
