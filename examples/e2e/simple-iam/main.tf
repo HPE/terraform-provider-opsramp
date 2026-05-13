@@ -1,8 +1,8 @@
 terraform {
   required_providers {
     opsramp = {
-      source  = "github.com/HPE/terraform-provider-opsramp"
-      version = ">=0.1.0"
+      source = "registry.terraform.io/HPE/opsramp"
+      version = ">=0.1.3"
     }
   }
 }
