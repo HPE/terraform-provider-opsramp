@@ -14,9 +14,9 @@ type OpsQLSearchRequest struct {
 	FilterCriteria string   `json:"filterCriteria"`
 }
 
-func (c *OpsRampClient) GetDeviceTypes() ([]string, error) {
+func (c *OpsRampClient) GetDeviceTypes(tenantId string) ([]string, error) {
 	// Prepare the URL, Method and Payload fo the Client
-	apiUrl := fmt.Sprintf("%s/api/v2/tenants/%s/allResourceTypes/minimal", c.BaseUrl, c.TenantId)
+	apiUrl := fmt.Sprintf("%s/api/v2/tenants/%s/resourceType/minimal", c.BaseUrl, tenantId)
 	method := "GET"
 
 	// Create a new Request
@@ -42,7 +42,7 @@ func (c *OpsRampClient) GetDeviceTypes() ([]string, error) {
 }
 
 // CreateResource - Create new Resource
-func (c *OpsRampClient) CreateResource(resource CreateResource) (*ResourceCreated, error) {
+func (c *OpsRampClient) CreateResource(tenantId string, resource CreateResource) (*ResourceCreated, error) {
 
 	// Convert Request Data/Body to JSON
 	rb, err := json.Marshal(resource)
@@ -51,7 +51,7 @@ func (c *OpsRampClient) CreateResource(resource CreateResource) (*ResourceCreate
 	}
 
 	// Prepare the URL, Method and Payload fo the Client
-	apiUrl := fmt.Sprintf("%s/api/v2/tenants/%s/resources", c.BaseUrl, c.TenantId)
+	apiUrl := fmt.Sprintf("%s/api/v2/tenants/%s/resources", c.BaseUrl, tenantId)
 	method := "POST"
 
 	// Create a new Request
@@ -73,10 +73,10 @@ func (c *OpsRampClient) CreateResource(resource CreateResource) (*ResourceCreate
 }
 
 // GetResource - Get the resource with ID of the resource
-func (c *OpsRampClient) GetResource(uuid string) (*GetResource, error) {
+func (c *OpsRampClient) GetResource(tenantId string, uuid string) (*GetResource, error) {
 
 	// Prepare config for API request
-	apiUrl := fmt.Sprintf("%s/api/v2/tenants/%s/resources/%s", c.BaseUrl, c.TenantId, uuid)
+	apiUrl := fmt.Sprintf("%s/api/v2/tenants/%s/resources/%s", c.BaseUrl, tenantId, uuid)
 	method := "GET"
 
 	// Prepare the request
@@ -98,7 +98,7 @@ func (c *OpsRampClient) GetResource(uuid string) (*GetResource, error) {
 }
 
 // UpdateResource - Update a resource using Az Client
-func (c *OpsRampClient) UpdateResource(uuid string, updateRecord UpdateResource) (interface{}, error) {
+func (c *OpsRampClient) UpdateResource(tenantId string, uuid string, updateRecord UpdateResource) (interface{}, error) {
 
 	// Convert data into JSON
 	rb, err := json.Marshal(updateRecord)
@@ -107,7 +107,7 @@ func (c *OpsRampClient) UpdateResource(uuid string, updateRecord UpdateResource)
 	}
 
 	// Prepare config for API request
-	apiUrl := fmt.Sprintf("%s/api/v2/tenants/%s/resources/%s", c.BaseUrl, c.TenantId, uuid)
+	apiUrl := fmt.Sprintf("%s/api/v2/tenants/%s/resources/%s", c.BaseUrl, tenantId, uuid)
 	method := "POST"
 
 	// Create a new Request
@@ -120,10 +120,10 @@ func (c *OpsRampClient) UpdateResource(uuid string, updateRecord UpdateResource)
 	return body, err
 }
 
-func (c *OpsRampClient) DeleteResource(uuid string) (interface{}, error) {
+func (c *OpsRampClient) DeleteResource(tenantId string, uuid string) (interface{}, error) {
 
 	// Prepare config for API Request
-	apiUrl := fmt.Sprintf("%s/api/v2/tenants/%s/resources/%s", c.BaseUrl, c.TenantId, uuid)
+	apiUrl := fmt.Sprintf("%s/api/v2/tenants/%s/resources/%s", c.BaseUrl, tenantId, uuid)
 	method := "DELETE"
 
 	// Create a new Request

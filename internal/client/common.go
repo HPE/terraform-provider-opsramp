@@ -12,6 +12,7 @@ import (
 	"net/url"
 	"strings"
 	"sync"
+	"time"
 )
 
 // OpsRampClient handles API communication.
@@ -80,41 +81,70 @@ func (c *OpsRampClient) SetAccessToken(token string) {
 }
 
 func (c *OpsRampClient) NewJsonRequest(method string, apiUrl string, payload []byte) ([]byte, error) {
-
-	// Prepare the request
-	payloadReader := strings.NewReader(string(payload))
-	req, err := http.NewRequest(method, apiUrl, payloadReader)
-	if err != nil {
-		return nil, err
-	}
-
-	// Add the proper Headers
-	req.Header.Set("Authorization", "Bearer "+c.GetAccessToken())
-	req.Header.Add("Content-Type", "application/json")
-
-	// Make the Request
-	res, err := c.Client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer res.Body.Close()
-
-	// Read the response body
-	body, err := io.ReadAll(res.Body)
-	if err != nil {
-		return nil, err
-	}
-
 	validStatuses := map[int]struct{}{
 		http.StatusOK:       {},
 		http.StatusAccepted: {},
 		http.StatusCreated:  {},
 	}
 
-	// Check Status code
-	if _, ok := validStatuses[res.StatusCode]; !ok {
+	const maxRetries = 3
+
+	for attempt := 0; attempt <= maxRetries; attempt++ {
+		// Build a fresh request for each attempt.
+		payloadReader := strings.NewReader(string(payload))
+		req, err := http.NewRequest(method, apiUrl, payloadReader)
+		if err != nil {
+			return nil, err
+		}
+
+		// Add the proper Headers
+		req.Header.Set("Authorization", "Bearer "+c.GetAccessToken())
+		req.Header.Add("Content-Type", "application/json")
+
+		// Make the Request
+		res, err := c.Client.Do(req)
+		if err != nil {
+			return nil, err
+		}
+
+		body, readErr := io.ReadAll(res.Body)
+		res.Body.Close()
+		if readErr != nil {
+			return nil, readErr
+		}
+
+		if _, ok := validStatuses[res.StatusCode]; ok {
+			return body, nil
+		}
+
+		// Retries are needed in some cases where previous resources
+		// ex: parents, groups, etc.. are not fully ready and API returns 500 with code 0005.
+		// This is a workaround to mitigate that issue.
+		if attempt < maxRetries && shouldRetryOpsRampServerError(res.StatusCode, body) {
+			delay := time.Duration(attempt+1) * time.Second
+			time.Sleep(delay)
+			continue
+		}
+
 		return nil, fmt.Errorf("status: %d, body: %s", res.StatusCode, body)
 	}
 
-	return body, err
+	return nil, fmt.Errorf("request failed after retries")
+}
+
+func shouldRetryOpsRampServerError(statusCode int, body []byte) bool {
+	if statusCode != http.StatusInternalServerError {
+		return false
+	}
+
+	var apiError struct {
+		Code string `json:"code"`
+	}
+
+	if err := json.Unmarshal(body, &apiError); err == nil {
+		return apiError.Code == "0005"
+	}
+
+	// Fallback for non-standard error payloads.
+	return strings.Contains(string(body), `"code":"0005"`)
 }

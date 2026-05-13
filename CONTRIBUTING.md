@@ -5,7 +5,7 @@ Thank you for your interest in contributing!
 ## Before You Start
 
 - This repository has been created as part of 
-(HPE Open Source community)[https://www.hpe.com/us/en/open-source.html].
+[HPE Open Source community](https://www.hpe.com/us/en/open-source.html).
 - HPE employees contributing as part of their role are strictly required to comply 
 with HPE Open Program Office (OPO) and HPE Open Source Review Board (OSRB) 
 requirements. 

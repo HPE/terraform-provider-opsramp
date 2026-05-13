@@ -43,6 +43,13 @@ func (r *Resource) Metadata(_ context.Context, req resource.MetadataRequest, res
 func (r *Resource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		Attributes: map[string]schema.Attribute{
+			"client": schema.StringAttribute{
+				Optional:    true,
+				Description: "The tenant/client ID to use for this resource. Defaults to the provider's tenant ID.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
+			},
 			"uuid": schema.StringAttribute{
 				Optional:    true,
 				Computed:    true,
@@ -118,19 +125,24 @@ func (r *Resource) Create(ctx context.Context, req resource.CreateRequest, resp 
 		return
 	}
 
+	tenantId := r.apiClient.TenantId
+	if !plan.Client.IsNull() && plan.Client.ValueString() != "" {
+		tenantId = plan.Client.ValueString()
+	}
+
 	var uuid string
 
 	// Check if UUID is provided
 	if plan.Uuid.ValueString() != "" {
 
 		uuid = plan.Uuid.ValueString()
-		existing, err := r.apiClient.GetResource(uuid)
+		existing, err := r.apiClient.GetResource(tenantId, uuid)
 		if err != nil {
 			resp.Diagnostics.AddError("Backend query error", err.Error())
 			return
 		}
 
-		_, err = r.PerformUpdate(plan, uuid)
+		_, err = r.PerformUpdate(tenantId, plan, uuid)
 
 		if err != nil {
 			resp.Diagnostics.AddError("Update Error", err.Error())
@@ -138,6 +150,7 @@ func (r *Resource) Create(ctx context.Context, req resource.CreateRequest, resp 
 		}
 
 		state := ResourceModel{
+			Client:         plan.Client,
 			Uuid:           types.StringValue(existing.Uuid),
 			ResourceName:   types.StringValue(existing.GeneralInfo.ResourceName),
 			HostName:       types.StringValue(existing.GeneralInfo.HostName),
@@ -156,7 +169,7 @@ func (r *Resource) Create(ctx context.Context, req resource.CreateRequest, resp 
 			HostName:     plan.HostName.ValueString(),
 		}
 
-		created, err := r.apiClient.CreateResource(createResource)
+		created, err := r.apiClient.CreateResource(tenantId, createResource)
 		if err != nil {
 			resp.Diagnostics.AddError("Creation Error", err.Error())
 			return
@@ -182,7 +195,12 @@ func (r *Resource) Read(ctx context.Context, req resource.ReadRequest, resp *res
 		return
 	}
 
-	existing, err := r.apiClient.GetResource(state.Uuid.ValueString())
+	tenantId := r.apiClient.TenantId
+	if !state.Client.IsNull() && state.Client.ValueString() != "" {
+		tenantId = state.Client.ValueString()
+	}
+
+	existing, err := r.apiClient.GetResource(tenantId, state.Uuid.ValueString())
 	// TODO: handle http error codes
 	if err != nil && !strings.Contains(err.Error(), "No Resource found") {
 		resp.Diagnostics.AddError("Read Error", err.Error())
@@ -195,6 +213,7 @@ func (r *Resource) Read(ctx context.Context, req resource.ReadRequest, resp *res
 	}
 
 	state = ResourceModel{
+		Client:         state.Client,
 		Uuid:           types.StringValue(existing.Uuid),
 		ResourceName:   types.StringValue(existing.GeneralInfo.ResourceName),
 		ResourceType:   types.StringValue(existing.GeneralInfo.ResourceType),
@@ -205,14 +224,14 @@ func (r *Resource) Read(ctx context.Context, req resource.ReadRequest, resp *res
 	resp.State.Set(ctx, &state)
 }
 
-func (r *Resource) PerformUpdate(plan ResourceModel, uuid string) (interface{}, error) {
+func (r *Resource) PerformUpdate(tenantId string, plan ResourceModel, uuid string) (interface{}, error) {
 	var updateResource client.UpdateResource
 
 	if plan.ResourceType.ValueString() != "" {
 		updateResource.ResourceType = plan.ResourceType.ValueString()
 	}
 
-	result, err := r.apiClient.UpdateResource(uuid, updateResource)
+	result, err := r.apiClient.UpdateResource(tenantId, uuid, updateResource)
 	return result, err
 }
 
@@ -233,7 +252,12 @@ func (r *Resource) Update(ctx context.Context, req resource.UpdateRequest, resp 
 		return
 	}
 
-	_, err := r.PerformUpdate(plan, state.Uuid.ValueString())
+	tenantId := r.apiClient.TenantId
+	if !state.Client.IsNull() && state.Client.ValueString() != "" {
+		tenantId = state.Client.ValueString()
+	}
+
+	_, err := r.PerformUpdate(tenantId, plan, state.Uuid.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Updating Resource",
@@ -242,7 +266,8 @@ func (r *Resource) Update(ctx context.Context, req resource.UpdateRequest, resp 
 		return
 	}
 
-	// Computed attributes
+	// Computed/immutable attributes
+	plan.Client = state.Client
 	plan.Uuid = state.Uuid
 	plan.AgentInstalled = state.AgentInstalled
 
@@ -259,7 +284,12 @@ func (r *Resource) Delete(ctx context.Context, req resource.DeleteRequest, resp 
 		return
 	}
 
-	_, err := r.apiClient.DeleteResource(state.Uuid.ValueString())
+	tenantId := r.apiClient.TenantId
+	if !state.Client.IsNull() && state.Client.ValueString() != "" {
+		tenantId = state.Client.ValueString()
+	}
+
+	_, err := r.apiClient.DeleteResource(tenantId, state.Uuid.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError("Delete Error", err.Error())
 		return
@@ -271,7 +301,8 @@ func (r *Resource) Delete(ctx context.Context, req resource.DeleteRequest, resp 
 // ImportState handles importing an existing resource.
 func (r *Resource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
 	uuid := req.ID
-	res, err := r.apiClient.GetResource(uuid)
+	tenantId := r.apiClient.TenantId
+	res, err := r.apiClient.GetResource(tenantId, uuid)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error Importing Resource",
@@ -281,6 +312,7 @@ func (r *Resource) ImportState(ctx context.Context, req resource.ImportStateRequ
 	}
 
 	state := ResourceModel{
+		Client:       types.StringNull(),
 		Uuid:         types.StringValue(res.Uuid),
 		ResourceName: types.StringValue(res.GeneralInfo.ResourceName),
 		ResourceType: types.StringValue(res.GeneralInfo.ResourceType),
@@ -292,6 +324,7 @@ func (r *Resource) ImportState(ctx context.Context, req resource.ImportStateRequ
 
 // ResourceModel maps Terraform schema attributes to the provider model.
 type ResourceModel struct {
+	Client         types.String `tfsdk:"client"`
 	Uuid           types.String `tfsdk:"uuid"`
 	ResourceName   types.String `tfsdk:"resource_name"`
 	HostName       types.String `tfsdk:"hostname"`
@@ -313,16 +346,24 @@ func (r *Resource) ModifyPlan(ctx context.Context, req resource.ModifyPlanReques
 		return
 	}
 
+	// Use client parameter if set, otherwise provider's tenant ID
+	tenantId := r.apiClient.TenantId
+	if !plan.Client.IsNull() && plan.Client.ValueString() != "" {
+		tenantId = plan.Client.ValueString()
+	}
+
 	// Validate Device Type
 	if plan.ResourceType.ValueString() != "" {
-		deviceTypes, err := r.apiClient.GetDeviceTypes()
+		deviceTypes, err := r.apiClient.GetDeviceTypes(tenantId)
 		if err != nil {
 			resp.Diagnostics.AddError("Error fetching GetDeviceTypes", err.Error())
+			return
 		}
 
 		deviceType := plan.ResourceType.ValueString()
 		if !slices.Contains(deviceTypes, deviceType) {
 			resp.Diagnostics.AddError("Error Device Type does not macth API device types", fmt.Sprintf("Allowed types: %s", strings.Join(deviceTypes, ",")))
+			return
 		}
 	}
 
