@@ -22,6 +22,7 @@ type OpsRampClient struct {
 	AccessToken   string
 	muAccessToken sync.RWMutex
 	Client        *http.Client
+	Scope         string
 }
 
 // OAuthTokenResponse stores API response
@@ -63,7 +64,24 @@ func NewOpsRampClient(clientID string, clientSecret string, endpoint string, ten
 	var tokenResponse OAuthTokenResponse
 	json.NewDecoder(resp.Body).Decode(&tokenResponse)
 
-	return &OpsRampClient{BaseUrl: baseUrl, TenantId: tenant, AccessToken: tokenResponse.AccessToken, Client: client}, nil
+	opsClient := &OpsRampClient{
+		BaseUrl:     baseUrl,
+		TenantId:    tenant,
+		AccessToken: tokenResponse.AccessToken,
+		Client:      client,
+		Scope:       "",
+	}
+
+	// Detect scope by checking endpoint availability
+	_, err = opsClient.GetTenantInfo(tenant)
+	if err != nil {
+		// If tenant info retrieval fails, default to MSP scope
+		opsClient.Scope = "CLIENT"
+	} else {
+		opsClient.Scope = "MSP"
+	}
+
+	return opsClient, nil
 }
 
 // Thread-safe getter for AccessToken
@@ -100,6 +118,7 @@ func (c *OpsRampClient) NewJsonRequest(method string, apiUrl string, payload []b
 		// Add the proper Headers
 		req.Header.Set("Authorization", "Bearer "+c.GetAccessToken())
 		req.Header.Add("Content-Type", "application/json")
+		req.Header.Add("Accept", "application/json")
 
 		// Make the Request
 		res, err := c.Client.Do(req)

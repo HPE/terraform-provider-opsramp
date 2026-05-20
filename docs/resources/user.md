@@ -70,8 +70,8 @@ resource "opsramp_user" "admin" {
   last_name  = "Istrator"
   email      = "email@example.com"
 
-  time_zone     = "Europe/Paris"
-  country       = "Spain"
+  time_zone = "Europe/Paris"
+  country   = "Spain"
 
   roles = [
     opsramp_role.client_admin_role.unique_id

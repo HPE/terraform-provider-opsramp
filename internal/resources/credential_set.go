@@ -14,15 +14,17 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
 var _ resource.Resource = &CredentialSetResource{}
+var _ resource.ResourceWithModifyPlan = &CredentialSetResource{}
 
 type CredentialSetResource struct {
-	apiClient *client.OpsRampClient
+	BaseResource
 }
 
 type CredentialSetModel struct {
@@ -99,7 +101,9 @@ func (r *CredentialSetResource) Schema(_ context.Context, _ resource.SchemaReque
 			},
 			"description": schema.StringAttribute{
 				Optional:            true,
-				MarkdownDescription: "Description of the credential set.",
+				Computed:            true,
+				Default:             stringdefault.StaticString(""),
+				MarkdownDescription: "The description of the credential set.",
 			},
 			"credential_type": schema.StringAttribute{
 				Required:            true,
@@ -275,18 +279,6 @@ func (r *CredentialSetResource) Schema(_ context.Context, _ resource.SchemaReque
 			},
 		},
 	}
-}
-
-func (r *CredentialSetResource) Configure(_ context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
-	if req.ProviderData == nil {
-		return
-	}
-	c, ok := req.ProviderData.(*client.OpsRampClient)
-	if !ok {
-		resp.Diagnostics.AddError("Unexpected Resource Configure Type", "Expected *client.OpsRampClient")
-		return
-	}
-	r.apiClient = c
 }
 
 func buildCredentialSetRequest(plan CredentialSetModel) client.CredentialSet {

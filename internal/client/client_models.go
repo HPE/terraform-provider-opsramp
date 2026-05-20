@@ -16,7 +16,6 @@ type CreateClient struct {
 	Zip         string   `json:"zip,omitempty"`
 	TimeZone    string   `json:"timeZone,omitempty"`
 	PhoneNumber string   `json:"phoneNumber,omitempty"`
-	ExtOrgId    string   `json:"extOrgId,omitempty"`
 	MspId       string   `json:"mspId,omitempty"`
 	ParentId    string   `json:"parentId,omitempty"`
 	Addons      []string `json:"addOns,omitempty"`
@@ -36,14 +35,14 @@ type ClientResponse struct {
 	Zip               string   `json:"zip"`
 	TimeZone          string   `json:"timeZone"`
 	PhoneNumber       string   `json:"phoneNumber"`
-	ExtOrgId          string   `json:"extOrgId"`
 	MspId             string   `json:"mspId"`
+	Mspid             int      `json:"mspid"`
 	ParentId          string   `json:"parentId"`
 	ShowCopyClipBoard bool     `json:"showCopyClipboard"`
 	CreatedTime       string   `json:"createdTime"`
 	UpdatedTime       string   `json:"updatedTime"`
-	Addons            []string `json:"addOns,omitempty"`
-	Packages          []string `json:"packages,omitempty"`
+	Addons            []string `json:"addOns"`
+	Packages          []string `json:"packages"`
 }
 
 // ClientMinimal represents minimal client info for listing

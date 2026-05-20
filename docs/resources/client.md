@@ -25,8 +25,7 @@ Manages an OpsRamp Client (sub-tenant) resource.
 - `address` (String) The address of the client.
 - `city` (String) The city of the client.
 - `country` (String) The country of the client.
-- `ext_org_id` (String) External organization ID for the client.
-- `packages` (Set of String) List of packages enabled in the Client.
+- `packages` (Set of String) List of packages enabled in the Client. (e.g. `Hybrid Discovery and Monitoring`, `Event and Incident Management`, `Remediation and Automation`.)
 - `phone_number` (String) The phone number of the client.
 - `state` (String) The state of the client.
 - `time_zone` (String) The time zone of the client.
@@ -43,7 +42,7 @@ resource "opsramp_client" "example_client" {
   name      = "Example Client"
   address   = "Valencia, Spain"
   country   = "Spain"
-  time_zone    = "Europe/Paris"
+  time_zone = "Europe/Paris"
 
   addons = [
     "Adapter Integrations",

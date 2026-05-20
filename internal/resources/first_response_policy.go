@@ -23,10 +23,11 @@ import (
 
 // Ensure implementation satisfies the expected interfaces
 var _ resource.Resource = &FirstResponsePolicyResource{}
+var _ resource.ResourceWithModifyPlan = &FirstResponsePolicyResource{}
 
 // FirstResponsePolicyResource defines the resource implementation.
 type FirstResponsePolicyResource struct {
-	apiClient *client.OpsRampClient
+	BaseResource
 }
 
 // FirstResponsePolicyModel maps Terraform schema attributes to the provider model.
@@ -233,33 +234,11 @@ func (r *FirstResponsePolicyResource) Schema(_ context.Context, _ resource.Schem
 	}
 }
 
-// Configure prepares the resource with the API client.
-func (r *FirstResponsePolicyResource) Configure(_ context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
-	if req.ProviderData == nil {
-		return
-	}
-
-	c, ok := req.ProviderData.(*client.OpsRampClient)
-	if !ok {
-		resp.Diagnostics.AddError(
-			"Unexpected Resource Configure Type",
-			"Expected *client.OpsRampClient",
-		)
-		return
-	}
-
-	r.apiClient = c
-}
-
-func buildFirstResponsePolicyRequest(plan FirstResponsePolicyModel, hasClient bool) client.FirstResponsePolicy {
+func buildFirstResponsePolicyRequest(plan FirstResponsePolicyModel) client.FirstResponsePolicy {
 	policy := client.FirstResponsePolicy{
 		Name:        plan.Name.ValueString(),
 		EnabledMode: plan.EnabledMode.ValueString(),
 		FilterQuery: plan.FilterQuery.ValueString(),
-	}
-
-	if !hasClient {
-		policy.OrganizationMatchingType = "ALL"
 	}
 
 	if !plan.AttributeActions.IsNull() && !plan.AttributeActions.IsUnknown() {
@@ -421,8 +400,7 @@ func (r *FirstResponsePolicyResource) Create(ctx context.Context, req resource.C
 		tenantId = plan.Client.ValueString()
 	}
 
-	hasClient := !plan.Client.IsNull() && plan.Client.ValueString() != ""
-	policy := buildFirstResponsePolicyRequest(plan, hasClient)
+	policy := buildFirstResponsePolicyRequest(plan)
 
 	created, err := r.apiClient.CreateFirstResponsePolicy(tenantId, policy)
 	if err != nil {
@@ -482,8 +460,7 @@ func (r *FirstResponsePolicyResource) Update(ctx context.Context, req resource.U
 		tenantId = state.Client.ValueString()
 	}
 
-	hasClient := !state.Client.IsNull() && state.Client.ValueString() != ""
-	policy := buildFirstResponsePolicyRequest(plan, hasClient)
+	policy := buildFirstResponsePolicyRequest(plan)
 
 	updated, err := r.apiClient.UpdateFirstResponsePolicy(tenantId, state.Id.ValueString(), policy)
 	if err != nil {

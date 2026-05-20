@@ -19,10 +19,11 @@ import (
 // Ensure implementation satisfies the expected interfaces
 var _ resource.Resource = &ServicemapResourceLink{}
 var _ resource.ResourceWithImportState = &ServicemapResourceLink{}
+var _ resource.ResourceWithModifyPlan = &ServicemapResourceLink{}
 
 // ServicemapResourceLink defines the resource implementation.
 type ServicemapResourceLink struct {
-	apiClient *client.OpsRampClient
+	BaseResource
 }
 
 // NewServicemapLink creates a new instance of the resource.
@@ -39,6 +40,12 @@ func (r *ServicemapResourceLink) Metadata(_ context.Context, req resource.Metada
 func (r *ServicemapResourceLink) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		Attributes: map[string]schema.Attribute{
+			"client": schema.StringAttribute{
+				Optional: true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
+			},
 			// parent attribute
 			"parent": schema.StringAttribute{
 				Optional: true,
@@ -55,24 +62,6 @@ func (r *ServicemapResourceLink) Schema(ctx context.Context, req resource.Schema
 			},
 		},
 	}
-}
-
-// Configure prepares the resource with client.
-func (r *ServicemapResourceLink) Configure(_ context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
-	if req.ProviderData == nil {
-		return
-	}
-
-	client, ok := req.ProviderData.(*client.OpsRampClient)
-	if !ok {
-		resp.Diagnostics.AddError(
-			"Unexpected Resource Configure Type",
-			"Expected *client.OpsRampClient",
-		)
-		return
-	}
-
-	r.apiClient = client
 }
 
 func translateLinkPlanToModel(plan ServicemapLinkModel) client.CreateServicemapLink {
@@ -192,6 +181,7 @@ func (r *ServicemapResourceLink) ImportState(ctx context.Context, req resource.I
 	}
 
 	state := ServicemapLinkModel{
+		Client: types.StringNull(),
 		Parent: types.StringValue(parts[0]),
 		Link:   types.StringValue(parts[1]),
 	}
@@ -200,6 +190,7 @@ func (r *ServicemapResourceLink) ImportState(ctx context.Context, req resource.I
 }
 
 type ServicemapLinkModel struct {
+	Client types.String `tfsdk:"client"`
 	Parent types.String `tfsdk:"parent"`
 	Link   types.String `tfsdk:"link"`
 }

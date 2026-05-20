@@ -1,7 +1,7 @@
 # Terraform Provider for OpsRamp
 
 <!--
-(C) Copyright 2025 Hewlett Packard Enterprise Development LP
+(C) Copyright 2026 Hewlett Packard Enterprise Development LP
 -->
 
 A [Terraform](https://www.terraform.io/) provider to manage resources via the [OpsRamp](https://www.opsramp.com/) REST API, built on the [Terraform Plugin Framework](https://github.com/hashicorp/terraform-plugin-framework).
@@ -90,7 +90,7 @@ provider "opsramp" {
 resource "opsramp_resource" "server" {
   resource_name = "my-server"
   hostname      = "server01.example.com"
-  resource_type = "Server"
+  resource_type = "Linux"
 }
 ```
 
@@ -111,7 +111,7 @@ resource "opsramp_servicemap" "app" {
 ```hcl
 resource "opsramp_client" "customer" {
   name      = "Acme Corp"
-  country   = "US"
+  country   = "United States"
   time_zone = "America/New_York"
 }
 
@@ -130,7 +130,7 @@ resource "opsramp_user" "admin" {
 
 ```hcl
 data "opsramp_resource_lookup" "search" {
-  query = "type = 'Server' AND name LIKE 'prod%'"
+  query = "type = 'Linux' AND name LIKE 'prod%'"
 }
 
 output "resource_exists" {
@@ -183,6 +183,7 @@ make install
 │   │   └── <resource>.go        # Schema, CRUD, model conversion
 │   └── data/                    # Terraform data source implementations
 │       └── <datasource>.go
+├── docs/                        # Resource documentation from tfplugindocs
 ├── examples/                    # Example Terraform configurations
 └── modules/                     # Reusable Terraform modules
 ```
@@ -191,13 +192,20 @@ make install
 
 - **Client layer** (`internal/client/`): Pure API communication. Each file contains CRUD methods and their corresponding request/response models. No Terraform types here.
 - **Resource layer** (`internal/resources/`): Terraform schema definitions and CRUD handlers. Each resource uses `apiClient` as the field name for the API client and follows a consistent pattern:
-  1. Interface compliance checks (`var _ resource.Resource = &MyResource{}`)
-  2. Model struct with `tfsdk` tags
-  3. Constructor (`NewMyResource()`)
-  4. `Metadata`, `Schema`, `Configure` methods
-  5. `Create`, `Read`, `Update`, `Delete` methods with consistent error handling
-  6. `ImportState` where applicable
-  7. Translation helpers (`buildRequest`, `populateModel`)
+  1. Interface compliance checks (required to embed standard configuration from BaseResource)
+  ```
+  var _ resource.Resource = &MyResource{}
+  var _ resource.ResourceWithModifyPlan = &MyResource{}
+  type MyResource struct {
+	  BaseResource
+  }
+  ```
+  3. Model struct with `tfsdk` tags
+  4. Constructor (`NewMyResource()`)
+  5. `Metadata`, `Schema`, `Configure` methods
+  6. `Create`, `Read`, `Update`, `Delete` methods with consistent error handling
+  7. `ImportState` where applicable
+  8. Translation helpers (`buildMyResource`, `mapMyResource`)
 - **Data source layer** (`internal/data/`): Read-only lookups following the same client/schema pattern.
 
 ## Contributing
@@ -209,5 +217,5 @@ Contributions are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md) for th
 This project is property of HPE OpsRamp / Hewlett Packard Enterprise.
 
 ```
-(C) Copyright 2025 Hewlett Packard Enterprise Development LP
+(C) Copyright 2026 Hewlett Packard Enterprise Development LP
 ```

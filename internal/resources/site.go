@@ -24,10 +24,11 @@ import (
 // Ensure implementation satisfies the expected interfaces
 var _ resource.Resource = &SiteResource{}
 var _ resource.ResourceWithImportState = &SiteResource{}
+var _ resource.ResourceWithModifyPlan = &SiteResource{}
 
 // SiteResource defines the resource implementation.
 type SiteResource struct {
-	apiClient *client.OpsRampClient
+	BaseResource
 }
 
 // SiteModel maps Terraform schema attributes to the provider model.
@@ -104,7 +105,7 @@ func (r *SiteResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 				Optional:            true,
 				Computed:            true,
 				Default:             stringdefault.StaticString(""),
-				MarkdownDescription: "A description of the site.",
+				MarkdownDescription: "The description of the site.",
 			},
 			"address": schema.StringAttribute{
 				Optional:            true,
@@ -196,24 +197,6 @@ func (r *SiteResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 			},
 		},
 	}
-}
-
-// Configure prepares the resource with the API client.
-func (r *SiteResource) Configure(_ context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
-	if req.ProviderData == nil {
-		return
-	}
-
-	c, ok := req.ProviderData.(*client.OpsRampClient)
-	if !ok {
-		resp.Diagnostics.AddError(
-			"Unexpected Resource Configure Type",
-			"Expected *client.OpsRampClient",
-		)
-		return
-	}
-
-	r.apiClient = c
 }
 
 func buildSiteResourceRefs(resources types.Set) []client.SiteResource {

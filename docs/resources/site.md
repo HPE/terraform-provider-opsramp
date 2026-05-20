@@ -25,7 +25,7 @@ Manages an OpsRamp Site resource for grouping and organizing monitored resources
 - `city` (String) The city where the site is located.
 - `client` (String) The client (tenant) UUID where this site should be created. If not specified, uses the provider's tenant.
 - `country` (String) The country where the site is located.
-- `description` (String) A description of the site.
+- `description` (String) The description of the site.
 - `parent` (String) The parent site, if this site is nested under another.
 - `phone_extension` (String) The phone extension for the site.
 - `phone_number` (String) The primary phone number for the site.
@@ -53,26 +53,26 @@ Optional:
 ## Example Usage
 ```terraform
 resource "opsramp_site" "vmware_site_madrid" {
-  parent  = opsramp_site.vmware_site_spain.id
-  name    = "CTC Madrid"
-  address = "Calle Vicente Aleixandre, 1"
-  country = "Spain"
-  zip     = "28232"
-  state   = "Madrid"
-  city    = "Las Rozas de Madrid"
+  parent       = opsramp_site.vmware_site_spain.id
+  name         = "CTC Madrid"
+  address      = "Calle Vicente Aleixandre, 1"
+  country      = "Spain"
+  zip          = "28232"
+  state        = "Madrid"
+  city         = "Las Rozas de Madrid"
   search_query = "name CONTAINS \"MAD\""
 }
 ```
 
 ```terraform
 resource "opsramp_site" "site_valencia" {
-  parent  = opsramp_site.vmware_site_spain.id
-  name    = "Valencia Data Center"
-  address = "Av. del General Avilés, 35-37, Benicalap"
-  country = "Spain"
-  zip     = "46035"
-  state   = "Comunitat Valenciana"
-  city    = "València"
+  parent    = opsramp_site.vmware_site_spain.id
+  name      = "Valencia Data Center"
+  address   = "Av. del General Avilés, 35-37, Benicalap"
+  country   = "Spain"
+  zip       = "46035"
+  state     = "Comunitat Valenciana"
+  city      = "València"
   resources = [opsramp_resource.resource1.uuid]
 }
 ```

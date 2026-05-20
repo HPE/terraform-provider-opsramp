@@ -22,10 +22,11 @@ import (
 // Ensure implementation satisfies the expected interfaces
 var _ resource.Resource = &ScriptCategoryResource{}
 var _ resource.ResourceWithImportState = &ScriptCategoryResource{}
+var _ resource.ResourceWithModifyPlan = &ScriptCategoryResource{}
 
 // ScriptCategoryResource defines the resource implementation.
 type ScriptCategoryResource struct {
-	apiClient *client.OpsRampClient
+	BaseResource
 }
 
 // ScriptCategoryModel maps Terraform schema attributes to the provider model.
@@ -79,24 +80,6 @@ func (r *ScriptCategoryResource) Schema(_ context.Context, _ resource.SchemaRequ
 			},
 		},
 	}
-}
-
-// Configure prepares the resource with the API client.
-func (r *ScriptCategoryResource) Configure(_ context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
-	if req.ProviderData == nil {
-		return
-	}
-
-	c, ok := req.ProviderData.(*client.OpsRampClient)
-	if !ok {
-		resp.Diagnostics.AddError(
-			"Unexpected Resource Configure Type",
-			"Expected *client.OpsRampClient",
-		)
-		return
-	}
-
-	r.apiClient = c
 }
 
 func (r *ScriptCategoryResource) resolveTenantId(clientAttr types.String) string {

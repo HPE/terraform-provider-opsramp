@@ -8,21 +8,21 @@ terraform {
 }
 
 provider "opsramp" {
-  client_id     = "HDNPG7B8zcDGT2Qg8MnAAWv9srzgRwRz"
-  client_secret = "U4gV2UrHhwsme4Hvuf9uEutww5mVg5CBmjaAm9SgR7tJedrmpXTpkc4YKZ9UVQxH"
-  endpoint      = "score.api.opsramp.com"
-  tenant        = "29f83b5e-f7f0-4cd9-9cdc-53c9677eac87"
+  client_id     = "*****"
+  client_secret = "*****"
+  endpoint      = "*****"
+  tenant        = "*****"
 }
 
 # Create individual resources
 resource "opsramp_resource" "resource1" {
   resource_name = "Test1"
-  resource_type = "Server"
+  resource_type = "Linux"
 }
 
 resource "opsramp_resource" "resource2" {
   resource_name = "Test2"
-  resource_type = "Server"
+  resource_type = "Linux"
 }
 
 # Create a service with multiple resources

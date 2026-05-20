@@ -21,6 +21,7 @@ import (
 
 // Ensure implementation satisfies the expected interfaces.
 var _ resource.Resource = &DeviceGroupResource{}
+var _ resource.ResourceWithModifyPlan = &DeviceGroupResource{}
 
 // DeviceGroupModel maps Terraform schema attributes to the provider model.
 type DeviceGroupModel struct {
@@ -35,7 +36,7 @@ type DeviceGroupModel struct {
 
 // DeviceGroupResource defines the resource implementation.
 type DeviceGroupResource struct {
-	apiClient *client.OpsRampClient
+	BaseResource
 }
 
 // NewDeviceGroup creates a new instance of the resource.
@@ -101,24 +102,6 @@ func (r *DeviceGroupResource) Schema(ctx context.Context, req resource.SchemaReq
 
 }
 
-// Configure prepares the resource with client.
-func (r *DeviceGroupResource) Configure(_ context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
-	if req.ProviderData == nil {
-		return
-	}
-
-	client, ok := req.ProviderData.(*client.OpsRampClient)
-	if !ok {
-		resp.Diagnostics.AddError(
-			"Unexpected Resource Configure Type",
-			"Expected *client.OpsRampClient",
-		)
-		return
-	}
-
-	r.apiClient = client
-}
-
 func translatePlanToDeviceGroupModel(plan DeviceGroupModel) client.DeviceGroupAPI {
 	var parent *client.Parent
 
@@ -144,33 +127,6 @@ func translatePlanToDeviceGroupModel(plan DeviceGroupModel) client.DeviceGroupAP
 	}
 
 	return deviceGroup
-}
-
-// setToStringSlice converts a types.Set of strings to a []string.
-func setToStringSlice(s types.Set) []string {
-	elements := s.Elements()
-	result := make([]string, 0, len(elements))
-	for _, e := range elements {
-		if sv, ok := e.(types.String); ok {
-			result = append(result, sv.ValueString())
-		}
-	}
-	return result
-}
-
-// stringSetDiff returns elements in a that are not in b.
-func stringSetDiff(a, b []string) []string {
-	bSet := make(map[string]struct{}, len(b))
-	for _, v := range b {
-		bSet[v] = struct{}{}
-	}
-	var diff []string
-	for _, v := range a {
-		if _, found := bSet[v]; !found {
-			diff = append(diff, v)
-		}
-	}
-	return diff
 }
 
 func deviceGroupResourcesSet(ctx context.Context, ids []string) (types.Set, diag.Diagnostics) {
@@ -367,11 +323,17 @@ func (r *DeviceGroupResource) Update(ctx context.Context, req resource.UpdateReq
 
 	// Assign the backend response directly into the state
 	state.Id = types.StringValue(newDeviceGroup.Id)
+	state.Name = plan.Name
+	state.Client = plan.Client
 	state.EntityType = types.StringValue(newDeviceGroup.EntityType)
 
 	// Set search_query from API response
-	if newDeviceGroup.FilterCriteria != nil && newDeviceGroup.FilterCriteria.SearchQuery != "" {
+	if !plan.SearchQuery.IsNull() && !plan.SearchQuery.IsUnknown() {
+		state.SearchQuery = plan.SearchQuery
+	} else if newDeviceGroup.FilterCriteria != nil && newDeviceGroup.FilterCriteria.SearchQuery != "" {
 		state.SearchQuery = types.StringValue(newDeviceGroup.FilterCriteria.SearchQuery)
+	} else {
+		state.SearchQuery = types.StringValue("")
 	}
 
 	if newDeviceGroup.Parent != nil {

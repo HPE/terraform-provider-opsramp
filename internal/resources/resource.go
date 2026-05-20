@@ -26,7 +26,7 @@ var _ resource.ResourceWithModifyPlan = &Resource{}
 
 // Resource defines the resource implementation.
 type Resource struct {
-	apiClient *client.OpsRampClient
+	BaseResource
 }
 
 // New creates a new instance of the resource.
@@ -82,30 +82,18 @@ func (r *Resource) Schema(_ context.Context, _ resource.SchemaRequest, resp *res
 					stringplanmodifier.RequiresReplace(),
 				},
 			},
+			"alias_name": schema.StringAttribute{
+				Optional:    true,
+				Computed:    true,
+				Description: "The resource alias.",
+				Default:     stringdefault.StaticString(""),
+			},
 			"agent_installed": schema.BoolAttribute{
 				Computed:            true,
 				MarkdownDescription: "If the resource has an agent installed.",
 			},
 		},
 	}
-}
-
-// Configure prepares the resource with client.
-func (r *Resource) Configure(_ context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
-	if req.ProviderData == nil {
-		return
-	}
-
-	client, ok := req.ProviderData.(*client.OpsRampClient)
-	if !ok {
-		resp.Diagnostics.AddError(
-			"Unexpected Resource Configure Type",
-			"Expected *client.OpsRampClient",
-		)
-		return
-	}
-
-	r.apiClient = client
 }
 
 // Create handles the creation of the resource.
@@ -155,6 +143,7 @@ func (r *Resource) Create(ctx context.Context, req resource.CreateRequest, resp 
 			ResourceName:   types.StringValue(existing.GeneralInfo.ResourceName),
 			HostName:       types.StringValue(existing.GeneralInfo.HostName),
 			ResourceType:   types.StringValue(plan.ResourceType.ValueString()),
+			AliasName:      types.StringValue(existing.GeneralInfo.AliasName),
 			AgentInstalled: types.BoolValue(existing.AgentInstalled),
 		}
 
@@ -167,6 +156,7 @@ func (r *Resource) Create(ctx context.Context, req resource.CreateRequest, resp 
 			ResourceName: plan.ResourceName.ValueString(),
 			ResourceType: plan.ResourceType.ValueString(),
 			HostName:     plan.HostName.ValueString(),
+			AliasName:    plan.AliasName.ValueString(),
 		}
 
 		created, err := r.apiClient.CreateResource(tenantId, createResource)
@@ -180,6 +170,7 @@ func (r *Resource) Create(ctx context.Context, req resource.CreateRequest, resp 
 		plan.AgentInstalled = types.BoolValue(false)
 		plan.ResourceName = types.StringValue(plan.ResourceName.ValueString())
 		plan.HostName = types.StringValue(plan.HostName.ValueString())
+		plan.AliasName = types.StringValue(plan.AliasName.ValueString())
 
 		// Save state
 		resp.State.Set(ctx, &plan)
@@ -218,6 +209,7 @@ func (r *Resource) Read(ctx context.Context, req resource.ReadRequest, resp *res
 		ResourceName:   types.StringValue(existing.GeneralInfo.ResourceName),
 		ResourceType:   types.StringValue(existing.GeneralInfo.ResourceType),
 		HostName:       types.StringValue(existing.GeneralInfo.HostName),
+		AliasName:      types.StringValue(existing.GeneralInfo.AliasName),
 		AgentInstalled: types.BoolValue(existing.AgentInstalled),
 	}
 
@@ -229,6 +221,9 @@ func (r *Resource) PerformUpdate(tenantId string, plan ResourceModel, uuid strin
 
 	if plan.ResourceType.ValueString() != "" {
 		updateResource.ResourceType = plan.ResourceType.ValueString()
+	}
+	if plan.AliasName.ValueString() != "" {
+		updateResource.AliasName = plan.AliasName.ValueString()
 	}
 
 	result, err := r.apiClient.UpdateResource(tenantId, uuid, updateResource)
@@ -317,6 +312,7 @@ func (r *Resource) ImportState(ctx context.Context, req resource.ImportStateRequ
 		ResourceName: types.StringValue(res.GeneralInfo.ResourceName),
 		ResourceType: types.StringValue(res.GeneralInfo.ResourceType),
 		HostName:     types.StringValue(res.GeneralInfo.HostName),
+		AliasName:    types.StringValue(res.GeneralInfo.AliasName),
 	}
 
 	resp.State.Set(ctx, &state)
@@ -329,10 +325,14 @@ type ResourceModel struct {
 	ResourceName   types.String `tfsdk:"resource_name"`
 	HostName       types.String `tfsdk:"hostname"`
 	ResourceType   types.String `tfsdk:"resource_type"`
+	AliasName      types.String `tfsdk:"alias_name"`
 	AgentInstalled types.Bool   `tfsdk:"agent_installed"`
 }
 
 func (r *Resource) ModifyPlan(ctx context.Context, req resource.ModifyPlanRequest, resp *resource.ModifyPlanResponse) {
+	// Call base implementation
+	r.BaseResource.ModifyPlan(ctx, req, resp)
+
 	// Don't modify plan during destroy
 	if req.Plan.Raw.IsNull() {
 		return
@@ -343,6 +343,12 @@ func (r *Resource) ModifyPlan(ctx context.Context, req resource.ModifyPlanReques
 	resp.Diagnostics.Append(diags...)
 	req.State.Get(ctx, &state)
 	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	hasClientOverride := !plan.Client.IsNull() && !plan.Client.IsUnknown() && strings.TrimSpace(plan.Client.ValueString()) != ""
+	if strings.ToUpper(r.apiClient.Scope) != "CLIENT" && !hasClientOverride {
+		resp.Diagnostics.AddError("Resources can only be created at Client level", "Use a client-scoped provider configuration or specify the client using unique ID.")
 		return
 	}
 

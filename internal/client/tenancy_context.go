@@ -56,11 +56,8 @@ type MeResponse struct {
 	OrgType          string `json:"orgType"`
 }
 
-// CreateClient creates a new client (sub-tenant)
-func (c *OpsRampClient) GetMeInfo() (*ClientMinimal, error) {
-
-	// Prepare the URL, Method and Payload for the Client
-	apiUrl := fmt.Sprintf("%s/api/v2/users/me", c.BaseUrl)
+func (c *OpsRampClient) GetTenantInfo(tenantId string) (*ClientResponse, error) {
+	apiUrl := fmt.Sprintf("%s/api/v2/tenants/%s", c.BaseUrl, tenantId)
 	method := "GET"
 
 	// Create a new Request
@@ -70,15 +67,31 @@ func (c *OpsRampClient) GetMeInfo() (*ClientMinimal, error) {
 	}
 
 	// Preparing Response Body to return and convert it to Golang Map Object
-	var responseBody MeResponse
-	err = json.Unmarshal([]byte(body), &responseBody)
+	var context ClientResponse
+	err = json.Unmarshal([]byte(body), &context)
 	if err != nil {
 		return nil, err
 	}
 
-	var clientContext ClientMinimal
-	clientContext.UniqueId = responseBody.OrgId
-	clientContext.Name = responseBody.OrganizationName
+	return &context, nil
+}
 
-	return &clientContext, nil
+func (c *OpsRampClient) GetClientInfo(clientId string) (*ClientResponse, error) {
+	apiUrl := fmt.Sprintf("%s/api/v2/tenants/client/%s", c.BaseUrl, clientId)
+	method := "GET"
+
+	// Create a new Request
+	body, err := c.NewJsonRequest(method, apiUrl, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	// Preparing Response Body to return and convert it to Golang Map Object
+	var context ClientResponse
+	err = json.Unmarshal([]byte(body), &context)
+	if err != nil {
+		return nil, err
+	}
+
+	return &context, nil
 }

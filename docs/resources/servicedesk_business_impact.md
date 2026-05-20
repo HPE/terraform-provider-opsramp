@@ -19,6 +19,7 @@ description: |-
 
 ### Optional
 
+- `client` (String) The client (tenant) UUID where this resource should be managed. If not specified, uses the provider tenant.
 - `description` (String) The description of the ServiceDeskBusinessImpact.
 - `id` (String) The ID of the ServiceDeskBusinessImpact. May be retrieved from the backend.
 - `state` (Boolean) The state of the ServiceDeskBusinessImpact. Defaults to 'enabled'.
@@ -27,7 +28,7 @@ description: |-
 ```terraform
 # Create  multiple business impacts
 resource "opsramp_servicedesk_business_impact" "business_impact1" {
-  name = "Business Impact1"
+  name        = "Business Impact1"
   description = "Business Impact1 Description"
 }
 ```

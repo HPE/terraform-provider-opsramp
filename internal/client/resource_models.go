@@ -13,10 +13,12 @@ type CreateResource struct {
 	ResourceName string `json:"resourceName"`
 	ResourceType string `json:"resourceType"`
 	HostName     string `json:"hostName"`
+	AliasName    string `json:"aliasName"`
 }
 
 type UpdateResource struct {
 	ResourceType string `json:"resourceType"`
+	AliasName    string `json:"aliasName"`
 }
 
 type ResourceCreated struct {
@@ -28,6 +30,7 @@ type GeneralInfo struct {
 	HostName     string `json:"hostName"`
 	ResourceName string `json:"resourceName"`
 	ResourceType string `json:"resourceType"`
+	AliasName    string `json:"aliasName"`
 }
 
 type GetResource struct {

@@ -22,7 +22,7 @@ Manages an OpsRamp Knowledge Base Category. Categories organise KB articles and 
 ### Optional
 
 - `client` (String) The client (tenant) UUID where this category should be created. If not specified, uses the provider's tenant.
-- `description` (String) A description of the KB category.
+- `description` (String) The description of the KB category.
 - `parent_category_id` (String) The string ID of the parent KB category. Omit for a root-level category.
 
 ### Read-Only
@@ -32,7 +32,7 @@ Manages an OpsRamp Knowledge Base Category. Categories organise KB articles and 
 ## Example Usage
 ```terraform
 resource "opsramp_kb_category" "kb_category_default" {
-  name = "Default articles"
+  name        = "Default articles"
   description = "Category for default articles"
 }
 ```

@@ -16,18 +16,19 @@ description: |-
 ### Required
 
 - `name` (String) The name of the ServiceDeskCategory.
+- `ticket_type` (String) The ticket type of the ServiceDeskCategory (e.g. incidents, problems, serviceRequests).
 
 ### Optional
 
+- `client` (String) The client (tenant) UUID where this resource should be managed. If not specified, uses the provider tenant.
 - `description` (String) The description of the ServiceDeskCategory.
 - `id` (String) The ID of the ServiceDeskCategory. May be retrieved from the backend.
-- `ticket_type` (String) The ticket type of the ServiceDeskCategory.
 
 ## Example Usage
 ```terraform
 # Create multiple categories
 resource "opsramp_servicedesk_category" "category1" {
-  name = "Category1"
+  name        = "Category1"
   description = "Category1 Description"
   ticket_type = "serviceRequests"
 }

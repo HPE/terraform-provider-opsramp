@@ -21,10 +21,11 @@ import (
 // Ensure implementation satisfies the expected interfaces
 var _ resource.Resource = &KBArticleResource{}
 var _ resource.ResourceWithImportState = &KBArticleResource{}
+var _ resource.ResourceWithModifyPlan = &KBArticleResource{}
 
 // KBArticleResource defines the resource implementation.
 type KBArticleResource struct {
-	apiClient *client.OpsRampClient
+	BaseResource
 }
 
 // KBArticleModel maps Terraform schema attributes to the provider model.
@@ -109,21 +110,6 @@ func (r *KBArticleResource) Schema(_ context.Context, _ resource.SchemaRequest, 
 			},
 		},
 	}
-}
-
-// Configure prepares the resource with the API client.
-func (r *KBArticleResource) Configure(_ context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
-	if req.ProviderData == nil {
-		return
-	}
-
-	c, ok := req.ProviderData.(*client.OpsRampClient)
-	if !ok {
-		resp.Diagnostics.AddError("Unexpected Resource Configure Type", "Expected *client.OpsRampClient")
-		return
-	}
-
-	r.apiClient = c
 }
 
 func (r *KBArticleResource) resolveTenantId(clientAttr types.String) string {

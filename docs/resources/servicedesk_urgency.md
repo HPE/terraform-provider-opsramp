@@ -19,6 +19,7 @@ description: |-
 
 ### Optional
 
+- `client` (String) The client (tenant) UUID where this resource should be managed. If not specified, uses the provider tenant.
 - `description` (String) The description of the ServiceDeskUrgency.
 - `id` (String) The ID of the ServiceDeskUrgency. May be retrieved from the backend.
 - `state` (Boolean)
@@ -26,7 +27,7 @@ description: |-
 ## Example Usage
 ```terraform
 resource "opsramp_servicedesk_urgency" "urgency1" {
-  name = "Urgency1"
+  name        = "Urgency1"
   description = "Urgency1 Description"
 }
 ```

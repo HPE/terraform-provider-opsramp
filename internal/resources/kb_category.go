@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
@@ -20,10 +21,11 @@ import (
 // Ensure implementation satisfies the expected interfaces
 var _ resource.Resource = &KBCategoryResource{}
 var _ resource.ResourceWithImportState = &KBCategoryResource{}
+var _ resource.ResourceWithModifyPlan = &KBCategoryResource{}
 
 // KBCategoryResource defines the resource implementation.
 type KBCategoryResource struct {
-	apiClient *client.OpsRampClient
+	BaseResource
 }
 
 // KBCategoryModel maps Terraform schema attributes to the provider model.
@@ -71,10 +73,8 @@ func (r *KBCategoryResource) Schema(_ context.Context, _ resource.SchemaRequest,
 			"description": schema.StringAttribute{
 				Optional:            true,
 				Computed:            true,
-				MarkdownDescription: "A description of the KB category.",
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
+				Default:             stringdefault.StaticString(""),
+				MarkdownDescription: "The description of the KB category.",
 			},
 			"parent_category_id": schema.StringAttribute{
 				Optional:            true,
@@ -88,21 +88,6 @@ func (r *KBCategoryResource) Schema(_ context.Context, _ resource.SchemaRequest,
 	}
 }
 
-// Configure prepares the resource with the API client.
-func (r *KBCategoryResource) Configure(_ context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
-	if req.ProviderData == nil {
-		return
-	}
-
-	c, ok := req.ProviderData.(*client.OpsRampClient)
-	if !ok {
-		resp.Diagnostics.AddError("Unexpected Resource Configure Type", "Expected *client.OpsRampClient")
-		return
-	}
-
-	r.apiClient = c
-}
-
 func (r *KBCategoryResource) resolveTenantId(clientAttr types.String) string {
 	if !clientAttr.IsNull() && clientAttr.ValueString() != "" {
 		return clientAttr.ValueString()
@@ -110,9 +95,10 @@ func (r *KBCategoryResource) resolveTenantId(clientAttr types.String) string {
 	return r.apiClient.TenantId
 }
 
-func buildKBCategoryRequest(plan KBCategoryModel, hasClient bool) client.KBCategory {
+func buildKBCategoryRequest(plan KBCategoryModel, apiClient *client.OpsRampClient) client.KBCategory {
+
 	scope := "PARTNER"
-	if hasClient {
+	if apiClient.Scope != "MSP" || (!plan.Client.IsNull() && plan.Client.ValueString() != "") {
 		scope = "CLIENT"
 	}
 
@@ -148,8 +134,7 @@ func (r *KBCategoryResource) Create(ctx context.Context, req resource.CreateRequ
 	}
 
 	tenantId := r.resolveTenantId(plan.Client)
-	hasClient := !plan.Client.IsNull() && plan.Client.ValueString() != ""
-	catReq := buildKBCategoryRequest(plan, hasClient)
+	catReq := buildKBCategoryRequest(plan, r.apiClient)
 
 	created, err := r.apiClient.CreateKBCategory(tenantId, catReq)
 	if err != nil {
@@ -199,9 +184,7 @@ func (r *KBCategoryResource) Update(ctx context.Context, req resource.UpdateRequ
 
 	tenantId := r.resolveTenantId(plan.Client)
 	categoryId := state.Id.ValueString()
-
-	hasClient := !plan.Client.IsNull() && plan.Client.ValueString() != ""
-	catReq := buildKBCategoryRequest(plan, hasClient)
+	catReq := buildKBCategoryRequest(plan, r.apiClient)
 
 	updated, err := r.apiClient.UpdateKBCategory(tenantId, categoryId, catReq)
 	if err != nil {
