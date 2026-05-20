@@ -22,16 +22,16 @@ Manages an OpsRamp RBA Script Category. Categories organize scripts and can be n
 ### Optional
 
 - `client` (String) The client (tenant) UUID where this category should be created. If not specified, uses the provider's tenant.
-- `parent_id` (Number) The numeric ID of the parent category. Omit or set to `0` for a root-level category.
+- `parent_id` (String) Uuid of the parent category.
 
 ### Read-Only
 
-- `id` (String) The numeric ID of the category (as a string), assigned by the API.
+- `uuid` (String) The UUID of the script category, assigned by OpsRamp.
 
 ## Example Usage
 ```terraform
 resource "opsramp_script_category" "network" {
   name      = "Network"
-  parent_id = opsramp_script_category.automation.id
+  parent_id = opsramp_script_category.automation.uuid
 }
 ```

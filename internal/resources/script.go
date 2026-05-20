@@ -5,6 +5,7 @@ package resources
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"strconv"
 	"strings"
@@ -17,7 +18,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
@@ -26,11 +26,10 @@ import (
 // Ensure implementation satisfies the expected interfaces
 var _ resource.Resource = &ScriptResource{}
 var _ resource.ResourceWithImportState = &ScriptResource{}
-var _ resource.ResourceWithModifyPlan = &ScriptResource{}
 
 // ScriptResource defines the resource implementation.
 type ScriptResource struct {
-	BaseResource
+	apiClient *client.OpsRampClient
 }
 
 // ScriptParameterModel represents a single script parameter in Terraform state.
@@ -45,15 +44,15 @@ type ScriptParameterModel struct {
 
 // ScriptAttachmentModel represents the script file attachment in Terraform state.
 type ScriptAttachmentModel struct {
-	Id         types.Int64  `tfsdk:"id"`
-	Name       types.String `tfsdk:"name"`
-	ContentURL types.String `tfsdk:"content_url"`
+	Id   types.Int64  `tfsdk:"id"`
+	Name types.String `tfsdk:"name"`
+	File types.String `tfsdk:"file"`
 }
 
 // ScriptModel maps Terraform schema attributes to the provider model.
 type ScriptModel struct {
 	Client         types.String           `tfsdk:"client"`
-	Id             types.String           `tfsdk:"id"`
+	Uuid           types.String           `tfsdk:"uuid"`
 	CategoryId     types.String           `tfsdk:"category_id"`
 	Name           types.String           `tfsdk:"name"`
 	Description    types.String           `tfsdk:"description"`
@@ -63,10 +62,6 @@ type ScriptModel struct {
 	InstallTimeout types.Int64            `tfsdk:"install_timeout"`
 	Attachment     *ScriptAttachmentModel `tfsdk:"attachment"`
 	ScriptVersion  types.String           `tfsdk:"script_version"`
-	RegistryPath   types.String           `tfsdk:"registry_path"`
-	RegistryValue  types.String           `tfsdk:"registry_value"`
-	ProcessName    types.String           `tfsdk:"process_name"`
-	ServiceName    types.String           `tfsdk:"service_name"`
 }
 
 // NewScript creates a new instance of the resource.
@@ -91,16 +86,16 @@ func (r *ScriptResource) Schema(_ context.Context, _ resource.SchemaRequest, res
 					stringplanmodifier.RequiresReplace(),
 				},
 			},
-			"id": schema.StringAttribute{
+			"uuid": schema.StringAttribute{
 				Computed:            true,
-				MarkdownDescription: "The unique numeric identifier of the script (as a string).",
+				MarkdownDescription: "The UUID identifier of the script (as a string).",
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.UseStateForUnknown(),
 				},
 			},
 			"category_id": schema.StringAttribute{
 				Required:            true,
-				MarkdownDescription: "The ID of the RBA category this script belongs to.",
+				MarkdownDescription: "The ID of the Script Category this script belongs to.",
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
 				},
@@ -108,12 +103,19 @@ func (r *ScriptResource) Schema(_ context.Context, _ resource.SchemaRequest, res
 			"name": schema.StringAttribute{
 				Required:            true,
 				MarkdownDescription: "The name of the script.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
+				Validators: []validator.String{
+					stringvalidator.LengthAtLeast(1),
+				},
 			},
 			"description": schema.StringAttribute{
-				Optional:            true,
-				Computed:            true,
-				Default:             stringdefault.StaticString(""),
-				MarkdownDescription: "The description of the script.",
+				Required:            true,
+				MarkdownDescription: "A description of the script.",
+				Validators: []validator.String{
+					stringvalidator.LengthAtLeast(1),
+				},
 			},
 			"platforms": schema.SetAttribute{
 				Optional:            true,
@@ -127,9 +129,12 @@ func (r *ScriptResource) Schema(_ context.Context, _ resource.SchemaRequest, res
 			"execution_type": schema.StringAttribute{
 				Optional:            true,
 				Computed:            true,
-				MarkdownDescription: "The execution type of the script (e.g., `SHELL`, `POWERSHELL`, `BATCH`).",
+				MarkdownDescription: "The execution type of the script (e.g., `SHELL`, `POWERSHELL`, `PYTHON`).",
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.UseStateForUnknown(),
+				},
+				Validators: []validator.String{
+					stringvalidator.OneOf("SHELL", "POWERSHELL", "PYTHON"),
 				},
 			},
 			"install_timeout": schema.Int64Attribute{
@@ -143,41 +148,6 @@ func (r *ScriptResource) Schema(_ context.Context, _ resource.SchemaRequest, res
 			"script_version": schema.StringAttribute{
 				Computed:            true,
 				MarkdownDescription: "The version of the script, assigned by the API.",
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"registry_path": schema.StringAttribute{
-				Optional:            true,
-				Computed:            true,
-				MarkdownDescription: "Windows registry path used by the script.",
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"registry_value": schema.StringAttribute{
-				Optional:            true,
-				Computed:            true,
-				MarkdownDescription: "Windows registry value used by the script.",
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"process_name": schema.StringAttribute{
-				Optional:            true,
-				Computed:            true,
-				MarkdownDescription: "Process name associated with the script.",
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
-			},
-			"service_name": schema.StringAttribute{
-				Optional:            true,
-				Computed:            true,
-				MarkdownDescription: "Service name associated with the script.",
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
 			},
 			"parameters": schema.ListNestedAttribute{
 				Optional:            true,
@@ -196,8 +166,7 @@ func (r *ScriptResource) Schema(_ context.Context, _ resource.SchemaRequest, res
 						"description": schema.StringAttribute{
 							Optional:            true,
 							Computed:            true,
-							Default:             stringdefault.StaticString(""),
-							MarkdownDescription: "The description of the parameter.",
+							MarkdownDescription: "A description of the parameter.",
 						},
 						"default_value": schema.StringAttribute{
 							Optional:            true,
@@ -205,16 +174,17 @@ func (r *ScriptResource) Schema(_ context.Context, _ resource.SchemaRequest, res
 							MarkdownDescription: "The default value for the parameter.",
 						},
 						"type": schema.StringAttribute{
-							Optional:            true,
-							Computed:            true,
+							Required:            true,
 							MarkdownDescription: "Whether the parameter is `REQUIRED` or `OPTIONAL`.",
+							Validators: []validator.String{
+								stringvalidator.OneOf("REQUIRED", "OPTIONAL"),
+							},
 						},
 						"data_type": schema.StringAttribute{
-							Optional:            true,
-							Computed:            true,
-							MarkdownDescription: "The data type of the parameter. Valid values: `STRING`, `INTEGER`, `BOOLEAN`.",
+							Required:            true,
+							MarkdownDescription: "The data type of the parameter. Valid values: `STRING`, `INTEGER`, `PASSWORD`.",
 							Validators: []validator.String{
-								stringvalidator.OneOf("STRING", "INTEGER", "BOOLEAN"),
+								stringvalidator.OneOf("STRING", "INTEGER", "PASSWORD"),
 							},
 						},
 					},
@@ -235,17 +205,35 @@ func (r *ScriptResource) Schema(_ context.Context, _ resource.SchemaRequest, res
 							stringplanmodifier.UseStateForUnknown(),
 						},
 					},
-					"content_url": schema.StringAttribute{
+					"file": schema.StringAttribute{
 						Required:            true,
-						MarkdownDescription: "Base64-encoded script content on create/update; the API may return a download URL after creation.",
+						MarkdownDescription: "Script content",
 						PlanModifiers: []planmodifier.String{
-							stringplanmodifier.UseStateForUnknown(),
+							stringplanmodifier.RequiresReplace(),
 						},
 					},
 				},
 			},
 		},
 	}
+}
+
+// Configure prepares the resource with client.
+func (r *ScriptResource) Configure(_ context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
+	if req.ProviderData == nil {
+		return
+	}
+
+	c, ok := req.ProviderData.(*client.OpsRampClient)
+	if !ok {
+		resp.Diagnostics.AddError(
+			"Unexpected Resource Configure Type",
+			"Expected *client.OpsRampClient",
+		)
+		return
+	}
+
+	r.apiClient = c
 }
 
 // resolveTenantId determines the effective tenant ID.
@@ -262,10 +250,6 @@ func buildScriptRequest(plan ScriptModel) client.Script {
 		Name:          plan.Name.ValueString(),
 		Description:   plan.Description.ValueString(),
 		ExecutionType: plan.ExecutionType.ValueString(),
-		RegistryPath:  plan.RegistryPath.ValueString(),
-		RegistryValue: plan.RegistryValue.ValueString(),
-		ProcessName:   plan.ProcessName.ValueString(),
-		ServiceName:   plan.ServiceName.ValueString(),
 	}
 
 	if !plan.InstallTimeout.IsNull() && !plan.InstallTimeout.IsUnknown() {
@@ -294,7 +278,7 @@ func buildScriptRequest(plan ScriptModel) client.Script {
 
 	s.Attachment = &client.ScriptAttachment{
 		Name: plan.Attachment.Name.ValueString(),
-		File: plan.Attachment.ContentURL.ValueString(),
+		File: base64.StdEncoding.EncodeToString([]byte(plan.Attachment.File.ValueString())),
 	}
 
 	return s
@@ -302,16 +286,12 @@ func buildScriptRequest(plan ScriptModel) client.Script {
 
 // populateModelFromAPI maps an API response back into the Terraform model.
 func populateModelFromAPI(model *ScriptModel, s *client.Script) {
-	model.Id = types.StringValue(strconv.Itoa(s.Id))
+	model.Uuid = types.StringValue(s.Uuid)
 	model.Name = types.StringValue(s.Name)
 	model.Description = types.StringValue(s.Description)
 	model.ExecutionType = types.StringValue(s.ExecutionType)
 	model.InstallTimeout = types.Int64Value(int64(s.InstallTimeout))
 	model.ScriptVersion = types.StringValue(s.ScriptVersion)
-	model.RegistryPath = types.StringValue(s.RegistryPath)
-	model.RegistryValue = types.StringValue(s.RegistryValue)
-	model.ProcessName = types.StringValue(s.ProcessName)
-	model.ServiceName = types.StringValue(s.ServiceName)
 
 	var platforms []types.String
 	for _, p := range s.Platforms {
@@ -333,9 +313,9 @@ func populateModelFromAPI(model *ScriptModel, s *client.Script) {
 	model.Parameters = parameters
 
 	model.Attachment = &ScriptAttachmentModel{
-		Id:         types.Int64Value(int64(s.Attachment.Id)),
-		Name:       types.StringValue(s.Attachment.Name),
-		ContentURL: types.StringValue(s.Attachment.File),
+		Id:   types.Int64Value(int64(s.Attachment.Id)),
+		Name: types.StringValue(s.Attachment.Name),
+		File: types.StringValue(s.Attachment.File),
 	}
 }
 
@@ -375,7 +355,7 @@ func (r *ScriptResource) Read(ctx context.Context, req resource.ReadRequest, res
 
 	tenantId := r.resolveTenantId(state.Client)
 	categoryId := state.CategoryId.ValueString()
-	scriptId := state.Id.ValueString()
+	scriptId := state.Uuid.ValueString()
 
 	existing, err := r.apiClient.GetScript(tenantId, categoryId, scriptId)
 	if err != nil {
@@ -397,12 +377,23 @@ func (r *ScriptResource) Read(ctx context.Context, req resource.ReadRequest, res
 func (r *ScriptResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
 	var plan ScriptModel
 	var state ScriptModel
-	req.Plan.Get(ctx, &plan)
-	req.State.Get(ctx, &state)
+	diags := req.Plan.Get(ctx, &plan)
+	resp.Diagnostics.Append(diags...)
+	diags = req.State.Get(ctx, &state)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
 
 	tenantId := r.resolveTenantId(plan.Client)
 	categoryId := state.CategoryId.ValueString()
-	scriptId := state.Id.ValueString()
+	scriptId := state.Uuid.ValueString()
+
+	// If description is unknown/null in plan, keep the current backend/state value
+	// so update requests do not accidentally submit an empty description.
+	if plan.Description.IsUnknown() || plan.Description.IsNull() {
+		plan.Description = state.Description
+	}
 
 	scriptReq := buildScriptRequest(plan)
 	updated, err := r.apiClient.UpdateScript(tenantId, categoryId, scriptId, scriptReq)
@@ -411,13 +402,9 @@ func (r *ScriptResource) Update(ctx context.Context, req resource.UpdateRequest,
 		return
 	}
 
-	// Preserve identity fields from state
-	plan.Id = state.Id
-	plan.CategoryId = state.CategoryId
-
 	populateModelFromAPI(&plan, updated)
 
-	diags := resp.State.Set(ctx, &plan)
+	diags = resp.State.Set(ctx, &plan)
 	resp.Diagnostics.Append(diags...)
 }
 
@@ -432,10 +419,10 @@ func (r *ScriptResource) Delete(ctx context.Context, req resource.DeleteRequest,
 
 	tenantId := r.resolveTenantId(state.Client)
 	categoryId := state.CategoryId.ValueString()
-	scriptId := state.Id.ValueString()
+	scriptId := state.Uuid.ValueString()
 
 	err := r.apiClient.DeleteScript(tenantId, categoryId, scriptId)
-	if err != nil {
+	if err != nil && !strings.Contains(err.Error(), "status: 204") {
 		resp.Diagnostics.AddError("Error Deleting Script", fmt.Sprintf("Could not delete script %s: %s", scriptId, err))
 		return
 	}

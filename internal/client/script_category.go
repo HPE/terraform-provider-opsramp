@@ -8,9 +8,9 @@ import (
 	"fmt"
 )
 
-// ListScriptCategories returns all RBA categories (tree structure) for a tenant.
+// ListScriptCategories returns all Script categories (tree structure) for a tenant.
 func (c *OpsRampClient) ListScriptCategories(tenantId string) ([]ScriptCategory, error) {
-	apiUrl := fmt.Sprintf("%s/api/v2/tenants/%s/rba/categories", c.BaseUrl, tenantId)
+	apiUrl := fmt.Sprintf("%s/api/v3/tenants/%s/scripts-categories", c.BaseUrl, tenantId)
 
 	body, err := c.NewJsonRequest("GET", apiUrl, nil)
 	if err != nil {
@@ -26,39 +26,22 @@ func (c *OpsRampClient) ListScriptCategories(tenantId string) ([]ScriptCategory,
 	return responseBody, nil
 }
 
-// findScriptCategoryInTree recursively searches a category tree for a given ID.
-// Returns the matched category and the ID of its parent (0 if root-level).
-func findScriptCategoryInTree(categories []ScriptCategory, id int, parentId int) (*ScriptCategory, int) {
-	for i := range categories {
-		if categories[i].Id == id {
-			return &categories[i], parentId
-		}
-		if found, pid := findScriptCategoryInTree(categories[i].Childs, id, categories[i].Id); found != nil {
-			return found, pid
-		}
-	}
-	return nil, 0
-}
-
-// ScriptCategoryResult wraps a ScriptCategory with its resolved parent ID.
-type ScriptCategoryResult struct {
-	Category *ScriptCategory
-	ParentId int // 0 if the category is at the root level
-}
-
 // GetScriptCategory retrieves a specific RBA category by ID by searching the full list.
-func (c *OpsRampClient) GetScriptCategory(tenantId string, categoryId int) (*ScriptCategoryResult, error) {
-	categories, err := c.ListScriptCategories(tenantId)
+func (c *OpsRampClient) GetScriptCategory(tenantId string, categoryId string) (*ScriptCategory, error) {
+	apiUrl := fmt.Sprintf("%s/api/v3/tenants/%s/scripts-category/%s", c.BaseUrl, tenantId, categoryId)
+
+	body, err := c.NewJsonRequest("GET", apiUrl, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	cat, parentId := findScriptCategoryInTree(categories, categoryId, 0)
-	if cat == nil {
-		return nil, fmt.Errorf("script category with id %d not found", categoryId)
+	var responseBody ScriptCategory
+	err = json.Unmarshal([]byte(body), &responseBody)
+	if err != nil {
+		return nil, err
 	}
 
-	return &ScriptCategoryResult{Category: cat, ParentId: parentId}, nil
+	return &responseBody, nil
 }
 
 // CreateScriptCategory creates a new RBA category.
@@ -68,7 +51,7 @@ func (c *OpsRampClient) CreateScriptCategory(tenantId string, categoryData Scrip
 		return nil, err
 	}
 
-	apiUrl := fmt.Sprintf("%s/api/v2/tenants/%s/rba/categories", c.BaseUrl, tenantId)
+	apiUrl := fmt.Sprintf("%s/api/v3/tenants/%s/scripts-category", c.BaseUrl, tenantId)
 
 	body, err := c.NewJsonRequest("POST", apiUrl, rb)
 	if err != nil {
@@ -92,7 +75,7 @@ func (c *OpsRampClient) UpdateScriptCategory(tenantId string, categoryData Scrip
 		return nil, err
 	}
 
-	apiUrl := fmt.Sprintf("%s/api/v2/tenants/%s/rba/categories", c.BaseUrl, tenantId)
+	apiUrl := fmt.Sprintf("%s/api/v3/tenants/%s/scripts-category", c.BaseUrl, tenantId)
 
 	body, err := c.NewJsonRequest("PUT", apiUrl, rb)
 	if err != nil {
@@ -109,8 +92,8 @@ func (c *OpsRampClient) UpdateScriptCategory(tenantId string, categoryData Scrip
 }
 
 // DeleteScriptCategory deletes an RBA category by ID.
-func (c *OpsRampClient) DeleteScriptCategory(tenantId string, categoryId int) error {
-	apiUrl := fmt.Sprintf("%s/api/v2/tenants/%s/rba/categories/%d", c.BaseUrl, tenantId, categoryId)
+func (c *OpsRampClient) DeleteScriptCategory(tenantId string, categoryId string) error {
+	apiUrl := fmt.Sprintf("%s/api/v3/tenants/%s/scripts-category/%s", c.BaseUrl, tenantId, categoryId)
 
 	_, err := c.NewJsonRequest("DELETE", apiUrl, nil)
 	return err

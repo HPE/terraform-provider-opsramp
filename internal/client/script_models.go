@@ -7,42 +7,37 @@ package client
 
 // Script represents an RBA script for creation, update, and retrieval
 type Script struct {
-	Id             int                `json:"id,omitempty"`
-	Name           string             `json:"name"`
-	Description    string             `json:"description,omitempty"`
-	Category       *ScriptCategoryRef `json:"category,omitempty"`
-	Platforms      []string           `json:"platforms,omitempty"`
-	Parameters     []ScriptParameter  `json:"parameters,omitempty"`
-	ExecutionType  string             `json:"executionType,omitempty"`
-	InstallTimeout int                `json:"installTimeout,omitempty"`
-	Attachment     *ScriptAttachment  `json:"attachment,omitempty"`
-	ScriptVersion  string             `json:"scriptVersion,omitempty"`
-	RegistryPath   string             `json:"registryPath,omitempty"`
-	RegistryValue  string             `json:"registryValue,omitempty"`
-	ProcessName    string             `json:"processName,omitempty"`
-	ServiceName    string             `json:"serviceName,omitempty"`
+	Uuid           string                   `json:"uuid,omitempty"`
+	Name           string                   `json:"name"`
+	Description    string                   `json:"description"`
+	Category       *ScriptCategoryParentRef `json:"category,omitempty"`
+	Platforms      []string                 `json:"platforms"`
+	InstallTimeout int                      `json:"installTimeout"`
+	Parameters     []ScriptParameter        `json:"parameters,omitempty"`
+	ExecutionType  string                   `json:"executionType,omitempty"`
+	Attachment     *ScriptAttachment        `json:"attachment,omitempty"`
+	ScriptVersion  string                   `json:"scriptVersion,omitempty"`
 }
-
-// ScriptCategoryRef represents a category reference inside a script
-type ScriptCategoryRef struct {
-	Id   int    `json:"id,omitempty"`
-	Name string `json:"name,omitempty"`
+type ScriptCreationResponse struct {
+	StatusType string `json:"statusType"` // CREATED, OK
+	Entity     string `json:"entity"`
+	EntityType string `json:"entityType"`
+	Status     int    `json:"status"`
 }
 
 // ScriptParameter represents a single parameter of a script
 type ScriptParameter struct {
 	Id           int    `json:"id,omitempty"`
 	Name         string `json:"name"`
-	Description  string `json:"description,omitempty"`
-	DefaultValue string `json:"defaultValue,omitempty"`
-	Type         string `json:"type,omitempty"`
-	DataType     string `json:"dataType,omitempty"`
+	Description  string `json:"description"`
+	DefaultValue string `json:"defaultValue"`
+	Type         string `json:"type"`     // OPTIONAL, REQUIRED
+	DataType     string `json:"dataType"` // INTEGER, STRING, PASSWORD
 }
 
 // ScriptAttachment represents the file attachment of a script
 type ScriptAttachment struct {
-	Id         int    `json:"id,omitempty"`
-	Name       string `json:"name,omitempty"`
-	ContentURL string `json:"contentURL,omitempty"`
-	File       string `json:"file,omitempty"`
+	Id   int    `json:"id,omitempty"`
+	Name string `json:"name"`
+	File string `json:"file"`
 }

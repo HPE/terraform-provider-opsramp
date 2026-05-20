@@ -18,33 +18,29 @@ Manages an OpsRamp RBA Script resource. Scripts belong to RBA categories and def
 ### Required
 
 - `attachment` (Attributes) The script file attachment. Provide `name` and `content_url` (base64-encoded script content) when creating a script with a file attachment. (see [below for nested schema](#nestedatt--attachment))
-- `category_id` (String) The ID of the RBA category this script belongs to.
+- `category_id` (String) The ID of the Script Category this script belongs to.
+- `description` (String) A description of the script.
 - `name` (String) The name of the script.
 
 ### Optional
 
 - `client` (String) The client (tenant) UUID where this script should be created. If not specified, uses the provider's tenant.
-- `description` (String) The description of the script.
-- `execution_type` (String) The execution type of the script (e.g., `SHELL`, `POWERSHELL`, `BATCH`).
+- `execution_type` (String) The execution type of the script (e.g., `SHELL`, `POWERSHELL`, `PYTHON`).
 - `install_timeout` (Number) Timeout in seconds for script execution.
 - `parameters` (Attributes List) Input parameters accepted by the script. (see [below for nested schema](#nestedatt--parameters))
 - `platforms` (Set of String) The platforms this script targets. Valid values: `WINDOWS`, `LINUX`.
-- `process_name` (String) Process name associated with the script.
-- `registry_path` (String) Windows registry path used by the script.
-- `registry_value` (String) Windows registry value used by the script.
-- `service_name` (String) Service name associated with the script.
 
 ### Read-Only
 
-- `id` (String) The unique numeric identifier of the script (as a string).
 - `script_version` (String) The version of the script, assigned by the API.
+- `uuid` (String) The UUID identifier of the script (as a string).
 
 <a id="nestedatt--attachment"></a>
 ### Nested Schema for `attachment`
 
 Required:
 
-- `content_url` (String) Base64-encoded script content on create/update; the API may return a download URL after creation.
+- `file` (String) Script content
 - `name` (String) The filename of the attachment.
 
 Read-Only:
@@ -57,14 +53,14 @@ Read-Only:
 
 Required:
 
+- `data_type` (String) The data type of the parameter. Valid values: `STRING`, `INTEGER`, `PASSWORD`.
 - `name` (String) The name of the parameter.
+- `type` (String) Whether the parameter is `REQUIRED` or `OPTIONAL`.
 
 Optional:
 
-- `data_type` (String) The data type of the parameter. Valid values: `STRING`, `INTEGER`, `BOOLEAN`.
 - `default_value` (String) The default value for the parameter.
-- `description` (String) The description of the parameter.
-- `type` (String) Whether the parameter is `REQUIRED` or `OPTIONAL`.
+- `description` (String) A description of the parameter.
 
 Read-Only:
 
@@ -73,17 +69,16 @@ Read-Only:
 ## Example Usage
 ```terraform
 resource "opsramp_script" "restart_service" {
-  category_id     = opsramp_script_category.os_management.id
+  category_id     = opsramp_script_category.os_management.uuid
   name            = "Restart Service"
   description     = "Restarts a named OS service."
   platforms       = ["LINUX"]
   execution_type  = "SHELL"
   install_timeout = 120
-  service_name    = "opsramp-agent"
 
   attachment = {
     name        = "restart_service_linux.sh"
-    content_url = base64encode(file("restart_service_linux.sh"))
+    file = file("restart_service_linux.sh")
   }
 
   parameters = [
