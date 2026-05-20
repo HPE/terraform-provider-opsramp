@@ -9,11 +9,13 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
 type ServiceDeskUrgencyModel struct {
+	Client      types.String `tfsdk:"client"`
 	Id          types.String `tfsdk:"id"`
 	Name        types.String `tfsdk:"name"`
 	Description types.String `tfsdk:"description"`
@@ -22,11 +24,12 @@ type ServiceDeskUrgencyModel struct {
 
 // ServiceDeskUrgency defines the resource implementation.
 type ServiceDeskUrgency struct {
-	apiClient *client.OpsRampClient
+	BaseResource
 }
 
 // Ensure implementation satisfies the expected interfaces
 var _ resource.Resource = &ServiceDeskUrgency{}
+var _ resource.ResourceWithModifyPlan = &ServiceDeskUrgency{}
 
 //var _ resource.ResourceWithImportState = &ServiceDeskUrgency{}
 
@@ -44,6 +47,13 @@ func (r *ServiceDeskUrgency) Metadata(_ context.Context, req resource.MetadataRe
 func (r *ServiceDeskUrgency) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		Attributes: map[string]schema.Attribute{
+			"client": schema.StringAttribute{
+				Optional:            true,
+				MarkdownDescription: "The client (tenant) UUID where this resource should be managed. If not specified, uses the provider tenant.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
+			},
 			"id": schema.StringAttribute{
 				Optional:    true,
 				Computed:    true,
@@ -59,6 +69,8 @@ func (r *ServiceDeskUrgency) Schema(_ context.Context, _ resource.SchemaRequest,
 			},
 			"description": schema.StringAttribute{
 				Optional:            true,
+				Computed:            true,
+				Default:             stringdefault.StaticString(""),
 				MarkdownDescription: "The description of the ServiceDeskUrgency.",
 			},
 			"state": schema.BoolAttribute{
@@ -67,24 +79,6 @@ func (r *ServiceDeskUrgency) Schema(_ context.Context, _ resource.SchemaRequest,
 			},
 		},
 	}
-}
-
-// Configure prepares the resource with client.
-func (r *ServiceDeskUrgency) Configure(_ context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
-	if req.ProviderData == nil {
-		return
-	}
-
-	client, ok := req.ProviderData.(*client.OpsRampClient)
-	if !ok {
-		resp.Diagnostics.AddError(
-			"Unexpected ServiceDeskUrgency Configure Type",
-			"Expected *client.OpsRampClient",
-		)
-		return
-	}
-
-	r.apiClient = client
 }
 
 func (r *ServiceDeskUrgency) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {

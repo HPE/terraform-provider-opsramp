@@ -22,10 +22,11 @@ import (
 
 // Ensure implementation satisfies the expected interfaces
 var _ resource.Resource = &AlertCorrelationPolicyResource{}
+var _ resource.ResourceWithModifyPlan = &AlertCorrelationPolicyResource{}
 
 // AlertCorrelationPolicyResource defines the resource implementation.
 type AlertCorrelationPolicyResource struct {
-	apiClient *client.OpsRampClient
+	BaseResource
 }
 
 // AlertCorrelationPolicyModel maps Terraform schema attributes to the provider model.
@@ -182,11 +183,11 @@ func (r *AlertCorrelationPolicyResource) Schema(_ context.Context, _ resource.Sc
 							Attributes: map[string]schema.Attribute{
 								"property": schema.StringAttribute{
 									Required:            true,
-									MarkdownDescription: "The alert property to match on (e.g., `service_group`).",
+									MarkdownDescription: "The alert property to match on.",
 								},
 								"match_type": schema.StringAttribute{
 									Required:            true,
-									MarkdownDescription: "The type of match (e.g., `Identical`).",
+									MarkdownDescription: "The type of match.",
 								},
 							},
 						},
@@ -206,11 +207,11 @@ func (r *AlertCorrelationPolicyResource) Schema(_ context.Context, _ resource.Sc
 									Attributes: map[string]schema.Attribute{
 										"entity_name": schema.StringAttribute{
 											Required:            true,
-											MarkdownDescription: "The entity name (e.g., `resource_type`, `alert_metric`).",
+											MarkdownDescription: "The entity name.",
 										},
 										"operator": schema.StringAttribute{
 											Required:            true,
-											MarkdownDescription: "The comparison operator (e.g., `Equals`).",
+											MarkdownDescription: "The comparison operator.",
 										},
 										"entity_value": schema.StringAttribute{
 											Required:            true,
@@ -253,11 +254,11 @@ func (r *AlertCorrelationPolicyResource) Schema(_ context.Context, _ resource.Sc
 							Attributes: map[string]schema.Attribute{
 								"property": schema.StringAttribute{
 									Required:            true,
-									MarkdownDescription: "The alert property to match on (e.g., `service_group`).",
+									MarkdownDescription: "The alert property to match on.",
 								},
 								"match_type": schema.StringAttribute{
 									Required:            true,
-									MarkdownDescription: "The type of match (e.g., `Identical`).",
+									MarkdownDescription: "The type of match.",
 								},
 							},
 						},
@@ -268,25 +269,7 @@ func (r *AlertCorrelationPolicyResource) Schema(_ context.Context, _ resource.Sc
 	}
 }
 
-// Configure prepares the resource with the API client.
-func (r *AlertCorrelationPolicyResource) Configure(_ context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
-	if req.ProviderData == nil {
-		return
-	}
-
-	c, ok := req.ProviderData.(*client.OpsRampClient)
-	if !ok {
-		resp.Diagnostics.AddError(
-			"Unexpected Resource Configure Type",
-			"Expected *client.OpsRampClient",
-		)
-		return
-	}
-
-	r.apiClient = c
-}
-
-func buildAlertCorrelationPolicyRequest(plan AlertCorrelationPolicyModel, hasClient bool) client.AlertCorrelationPolicy {
+func buildAlertCorrelationPolicyRequest(plan AlertCorrelationPolicyModel) client.AlertCorrelationPolicy {
 	policy := client.AlertCorrelationPolicy{
 		Name:             plan.Name.ValueString(),
 		EnabledMode:      plan.EnabledMode.ValueString(),
@@ -295,10 +278,6 @@ func buildAlertCorrelationPolicyRequest(plan AlertCorrelationPolicyModel, hasCli
 		InferenceQuery:   plan.InferenceQuery.ValueString(),
 		Review:           plan.Review.ValueBool(),
 		InferenceSubject: plan.InferenceSubject.ValueString(),
-	}
-
-	if !hasClient {
-		policy.OrganizationMatchingType = "ALL"
 	}
 
 	if !plan.Precedence.IsNull() && !plan.Precedence.IsUnknown() {
@@ -448,8 +427,7 @@ func (r *AlertCorrelationPolicyResource) Create(ctx context.Context, req resourc
 		tenantId = plan.Client.ValueString()
 	}
 
-	hasClient := !plan.Client.IsNull() && plan.Client.ValueString() != ""
-	policy := buildAlertCorrelationPolicyRequest(plan, hasClient)
+	policy := buildAlertCorrelationPolicyRequest(plan)
 
 	created, err := r.apiClient.CreateAlertCorrelationPolicy(tenantId, policy)
 	if err != nil {
@@ -509,8 +487,7 @@ func (r *AlertCorrelationPolicyResource) Update(ctx context.Context, req resourc
 		tenantId = state.Client.ValueString()
 	}
 
-	hasClient := !state.Client.IsNull() && state.Client.ValueString() != ""
-	policy := buildAlertCorrelationPolicyRequest(plan, hasClient)
+	policy := buildAlertCorrelationPolicyRequest(plan)
 
 	updated, err := r.apiClient.UpdateAlertCorrelationPolicy(tenantId, state.Id.ValueString(), policy)
 	if err != nil {

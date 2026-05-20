@@ -2,7 +2,7 @@ terraform {
   required_providers {
     opsramp = {
       source = "registry.terraform.io/HPE/opsramp"
-      version = ">=0.1.3"
+      version = ">=0.1.4"
     }
   }
 }
@@ -16,11 +16,13 @@ provider "opsramp" {
 
 # Create individual resources
 resource "opsramp_resource" "resource1" {
+  alias_name = "MyFirstResource"
   resource_name = "TestResource1"
-  resource_type = "Server"
+  resource_type = "Other"
 }
 
 resource "opsramp_resource" "resource2" {
-  resource_name = "TestResource2"
-  resource_type = "Server"
+  alias_name = "MySecondResource"
+  hostname = "testresource2.local"
+  resource_type = "Other"
 }

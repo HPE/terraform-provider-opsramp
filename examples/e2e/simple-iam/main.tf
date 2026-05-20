@@ -2,7 +2,7 @@ terraform {
   required_providers {
     opsramp = {
       source = "registry.terraform.io/HPE/opsramp"
-      version = ">=0.1.3"
+      version = ">=0.1.4"
     }
   }
 }
@@ -373,7 +373,7 @@ resource "opsramp_user" "admin" {
 
 # User Group for Client Admins
 resource "opsramp_user_group" "client_admin_group" {
-  name        = "Admin User Group3"
+  name        = "Admin User Group"
   description = "User group for client administrators"
 
   roles = [

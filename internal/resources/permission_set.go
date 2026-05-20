@@ -14,6 +14,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
@@ -25,7 +26,7 @@ var _ resource.ResourceWithModifyPlan = &PermissionSetResource{}
 
 // PermissionSetResource defines the resource implementation.
 type PermissionSetResource struct {
-	apiClient *client.OpsRampClient
+	BaseResource
 }
 
 // PermissionSetModel maps Terraform schema attributes to the provider model.
@@ -78,6 +79,8 @@ func (r *PermissionSetResource) Schema(_ context.Context, _ resource.SchemaReque
 			},
 			"description": schema.StringAttribute{
 				Optional:            true,
+				Computed:            true,
+				Default:             stringdefault.StaticString(""),
 				MarkdownDescription: "The description of the permission set.",
 			},
 			"permissions": schema.SetNestedAttribute{
@@ -101,26 +104,11 @@ func (r *PermissionSetResource) Schema(_ context.Context, _ resource.SchemaReque
 	}
 }
 
-// Configure prepares the resource with client.
-func (r *PermissionSetResource) Configure(_ context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
-	if req.ProviderData == nil {
-		return
-	}
-
-	c, ok := req.ProviderData.(*client.OpsRampClient)
-	if !ok {
-		resp.Diagnostics.AddError(
-			"Unexpected Resource Configure Type",
-			"Expected *client.OpsRampClient",
-		)
-		return
-	}
-
-	r.apiClient = c
-}
-
 // ModifyPlan filters permissions with empty type from the plan before comparison
 func (r *PermissionSetResource) ModifyPlan(ctx context.Context, req resource.ModifyPlanRequest, resp *resource.ModifyPlanResponse) {
+	// Call base implementation
+	r.BaseResource.ModifyPlan(ctx, req, resp)
+
 	// Don't modify plan during destroy
 	if req.Plan.Raw.IsNull() {
 		return
@@ -243,12 +231,6 @@ func (r *PermissionSetResource) Create(ctx context.Context, req resource.CreateR
 		return
 	}
 
-	// Use client parameter if set, otherwise provider's tenant ID
-	tenantId := r.apiClient.TenantId
-	if !plan.Client.IsNull() && plan.Client.ValueString() != "" {
-		tenantId = plan.Client.ValueString()
-	}
-
 	// Build permissions set (filters out empty types)
 	permissions, err := r.getPermissionsFromPlan(ctx, plan)
 	if err != nil {
@@ -256,15 +238,20 @@ func (r *PermissionSetResource) Create(ctx context.Context, req resource.CreateR
 		return
 	}
 
+	// Use client parameter if set, otherwise provider's tenant ID + scope
+	tenantId := r.apiClient.TenantId
+	scope := r.apiClient.Scope
+
+	if !plan.Client.IsNull() && plan.Client.ValueString() != "" {
+		scope = "CLIENT"
+		tenantId = plan.Client.ValueString()
+	}
+
 	createPermSet := client.CreatePermissionSet{
 		Name:        plan.Name.ValueString(),
 		Description: plan.Description.ValueString(),
 		Permissions: permissions,
-		Scope:       "MSP",
-	}
-
-	if !plan.Client.IsNull() && plan.Client.ValueString() != "" {
-		createPermSet.Scope = "CLIENT"
+		Scope:       scope,
 	}
 
 	created, err := r.apiClient.CreatePermissionSet(tenantId, createPermSet)

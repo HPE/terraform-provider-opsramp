@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
@@ -20,10 +21,11 @@ import (
 // Ensure implementation satisfies the expected interfaces
 var _ resource.Resource = &UserGroupResource{}
 var _ resource.ResourceWithImportState = &UserGroupResource{}
+var _ resource.ResourceWithModifyPlan = &UserGroupResource{}
 
 // UserGroupResource defines the resource implementation.
 type UserGroupResource struct {
-	apiClient *client.OpsRampClient
+	BaseResource
 }
 
 // UserGroupModel maps Terraform schema attributes to the provider model.
@@ -72,6 +74,8 @@ func (r *UserGroupResource) Schema(_ context.Context, _ resource.SchemaRequest, 
 			},
 			"description": schema.StringAttribute{
 				Optional:            true,
+				Computed:            true,
+				Default:             stringdefault.StaticString(""),
 				MarkdownDescription: "The description of the user group.",
 			},
 			"users": schema.SetAttribute{
@@ -86,24 +90,6 @@ func (r *UserGroupResource) Schema(_ context.Context, _ resource.SchemaRequest, 
 			},
 		},
 	}
-}
-
-// Configure prepares the resource with client.
-func (r *UserGroupResource) Configure(_ context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
-	if req.ProviderData == nil {
-		return
-	}
-
-	c, ok := req.ProviderData.(*client.OpsRampClient)
-	if !ok {
-		resp.Diagnostics.AddError(
-			"Unexpected Resource Configure Type",
-			"Expected *client.OpsRampClient",
-		)
-		return
-	}
-
-	r.apiClient = c
 }
 
 // Create handles the creation of the resource.
@@ -217,12 +203,14 @@ func (r *UserGroupResource) Read(ctx context.Context, req resource.ReadRequest, 
 		state.Users = users
 	}
 
-	// Update roles list
-	roles := make([]types.String, 0, len(existing.Roles))
-	for _, role := range existing.Roles {
-		roles = append(roles, types.StringValue(role.UniqueId))
+	// Update roles list while preserving null for optional unset attribute.
+	if state.Roles != nil {
+		roles := make([]types.String, 0, len(existing.Roles))
+		for _, role := range existing.Roles {
+			roles = append(roles, types.StringValue(role.UniqueId))
+		}
+		state.Roles = roles
 	}
-	state.Roles = roles
 
 	diags = resp.State.Set(ctx, &state)
 	resp.Diagnostics.Append(diags...)
@@ -245,9 +233,14 @@ func (r *UserGroupResource) Update(ctx context.Context, req resource.UpdateReque
 		tenantId = plan.Client.ValueString()
 	}
 
-	// Build roles list
+	// Build roles list. If roles are omitted in config (nil), preserve existing roles.
+	desiredRoles := plan.Roles
+	if desiredRoles == nil {
+		desiredRoles = state.Roles
+	}
+
 	var roles []client.UserRoleRef
-	for _, roleId := range plan.Roles {
+	for _, roleId := range desiredRoles {
 		roles = append(roles, client.UserRoleRef{UniqueId: roleId.ValueString()})
 	}
 
@@ -309,6 +302,7 @@ func (r *UserGroupResource) Update(ctx context.Context, req resource.UpdateReque
 	}
 
 	plan.UniqueId = state.UniqueId
+	plan.Roles = desiredRoles
 
 	diags = resp.State.Set(ctx, &plan)
 	resp.Diagnostics.Append(diags...)

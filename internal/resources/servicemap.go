@@ -26,10 +26,11 @@ import (
 // Ensure implementation satisfies the expected interfaces
 var _ resource.Resource = &ServicemapResource{}
 var _ resource.ResourceWithImportState = &ServicemapResource{}
+var _ resource.ResourceWithModifyPlan = &ServicemapResource{}
 
 // ServicemapResource defines the resource implementation.
 type ServicemapResource struct {
-	apiClient *client.OpsRampClient
+	BaseResource
 }
 
 // NewServicemap creates a new instance of the resource.
@@ -120,24 +121,6 @@ func (r *ServicemapResource) Schema(ctx context.Context, req resource.SchemaRequ
 			},
 		},
 	}
-}
-
-// Configure prepares the resource with client.
-func (r *ServicemapResource) Configure(_ context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
-	if req.ProviderData == nil {
-		return
-	}
-
-	client, ok := req.ProviderData.(*client.OpsRampClient)
-	if !ok {
-		resp.Diagnostics.AddError(
-			"Unexpected Resource Configure Type",
-			"Expected *client.OpsRampClient",
-		)
-		return
-	}
-
-	r.apiClient = client
 }
 
 func translatePlanToModel(plan ServicemapModel) client.CreateServicemap {

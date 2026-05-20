@@ -15,6 +15,8 @@ description: |-
 
 ### Optional
 
+- `alias_name` (String) The resource alias.
+- `client` (String) The tenant/client ID to use for this resource. Defaults to the provider's tenant ID.
 - `hostname` (String) The hostname. When uuid and resource_name are not set, resource_name must be provided together with resource_type.
 - `resource_name` (String) The resource name. When uuid and hostname are not set, resource_name must be provided together with resource_type.
 - `resource_type` (String) The type of the resource. Required with resource_name and hostname when uuid is not set.
@@ -28,7 +30,8 @@ description: |-
 ```terraform
 # Create a resource using hostname and resource_type
 resource "opsramp_resource" "test_resource" {
-  hostname = "testresource.example.com"
+  alias_name    = "TestResource"
+  hostname      = "testresource.example.com"
   resource_type = "Server"
 }
 ```
@@ -36,6 +39,7 @@ resource "opsramp_resource" "test_resource" {
 ```terraform
 # Create a resource using resource_name and resource_type
 resource "opsramp_resource" "test_resource" {
+  alias_name    = "TestResourceAlias"
   resource_name = "TestResource"
   resource_type = "Server"
 }

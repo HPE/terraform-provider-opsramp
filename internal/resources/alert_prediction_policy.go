@@ -20,10 +20,11 @@ import (
 
 // Ensure implementation satisfies the expected interfaces
 var _ resource.Resource = &AlertPredictionPolicyResource{}
+var _ resource.ResourceWithModifyPlan = &AlertPredictionPolicyResource{}
 
 // AlertPredictionPolicyResource defines the resource implementation.
 type AlertPredictionPolicyResource struct {
-	apiClient *client.OpsRampClient
+	BaseResource
 }
 
 // AlertPredictionPolicyModel maps Terraform schema attributes to the provider model.
@@ -109,34 +110,12 @@ func (r *AlertPredictionPolicyResource) Schema(_ context.Context, _ resource.Sch
 	}
 }
 
-// Configure prepares the resource with the API client.
-func (r *AlertPredictionPolicyResource) Configure(_ context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
-	if req.ProviderData == nil {
-		return
-	}
-
-	c, ok := req.ProviderData.(*client.OpsRampClient)
-	if !ok {
-		resp.Diagnostics.AddError(
-			"Unexpected Resource Configure Type",
-			"Expected *client.OpsRampClient",
-		)
-		return
-	}
-
-	r.apiClient = c
-}
-
-func buildAlertPredictionPolicyRequest(plan AlertPredictionPolicyModel, hasClient bool) client.AlertPredictionPolicy {
+func buildAlertPredictionPolicyRequest(plan AlertPredictionPolicyModel) client.AlertPredictionPolicy {
 	policy := client.AlertPredictionPolicy{
 		Name:                 plan.Name.ValueString(),
 		EnabledMode:          plan.EnabledMode.ValueString(),
 		SeasonalityTimeFrame: plan.SeasonalityTimeFrame.ValueString(),
 		FilterQuery:          plan.FilterQuery.ValueString(),
-	}
-
-	if !hasClient {
-		policy.OrganizationMatchingType = "ALL"
 	}
 
 	return policy
@@ -164,8 +143,7 @@ func (r *AlertPredictionPolicyResource) Create(ctx context.Context, req resource
 		tenantId = plan.Client.ValueString()
 	}
 
-	hasClient := !plan.Client.IsNull() && plan.Client.ValueString() != ""
-	policy := buildAlertPredictionPolicyRequest(plan, hasClient)
+	policy := buildAlertPredictionPolicyRequest(plan)
 
 	created, err := r.apiClient.CreateAlertPredictionPolicy(tenantId, policy)
 	if err != nil {
@@ -225,8 +203,7 @@ func (r *AlertPredictionPolicyResource) Update(ctx context.Context, req resource
 		tenantId = state.Client.ValueString()
 	}
 
-	hasClient := !state.Client.IsNull() && state.Client.ValueString() != ""
-	policy := buildAlertPredictionPolicyRequest(plan, hasClient)
+	policy := buildAlertPredictionPolicyRequest(plan)
 
 	updated, err := r.apiClient.UpdateAlertPredictionPolicy(tenantId, state.Id.ValueString(), policy)
 	if err != nil {

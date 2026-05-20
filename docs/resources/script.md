@@ -24,7 +24,7 @@ Manages an OpsRamp RBA Script resource. Scripts belong to RBA categories and def
 ### Optional
 
 - `client` (String) The client (tenant) UUID where this script should be created. If not specified, uses the provider's tenant.
-- `description` (String) A description of the script.
+- `description` (String) The description of the script.
 - `execution_type` (String) The execution type of the script (e.g., `SHELL`, `POWERSHELL`, `BATCH`).
 - `install_timeout` (Number) Timeout in seconds for script execution.
 - `parameters` (Attributes List) Input parameters accepted by the script. (see [below for nested schema](#nestedatt--parameters))
@@ -63,7 +63,7 @@ Optional:
 
 - `data_type` (String) The data type of the parameter. Valid values: `STRING`, `INTEGER`, `BOOLEAN`.
 - `default_value` (String) The default value for the parameter.
-- `description` (String) A description of the parameter.
+- `description` (String) The description of the parameter.
 - `type` (String) Whether the parameter is `REQUIRED` or `OPTIONAL`.
 
 Read-Only:
@@ -73,18 +73,18 @@ Read-Only:
 ## Example Usage
 ```terraform
 resource "opsramp_script" "restart_service" {
-  category_id = opsramp_script_category.os_management.id
-  name        = "Restart Service"
-  description = "Restarts a named OS service."
-  platforms   = ["LINUX"]
+  category_id     = opsramp_script_category.os_management.id
+  name            = "Restart Service"
+  description     = "Restarts a named OS service."
+  platforms       = ["LINUX"]
   execution_type  = "SHELL"
   install_timeout = 120
   service_name    = "opsramp-agent"
-  
+
   attachment = {
-    name     = "restart_service_linux.sh"
-    content_url  = base64encode(file("restart_service_linux.sh"))
-  } 
+    name        = "restart_service_linux.sh"
+    content_url = base64encode(file("restart_service_linux.sh"))
+  }
 
   parameters = [
     {

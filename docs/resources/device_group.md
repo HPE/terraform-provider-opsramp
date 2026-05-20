@@ -32,23 +32,23 @@ description: |-
 ## Example Usage
 ```terraform
 resource "opsramp_device_group" "device_group_query" {
-  parent = opsramp_device_group.device_group_root.id
-  name = "Test Queries"
+  parent       = opsramp_device_group.device_group_root.id
+  name         = "Test Queries"
   search_query = format("resourceType = \"Server\" AND uuid = \"%s\"", opsramp_resource.resource3.uuid)
 }
 ```
 
 ```terraform
 resource "opsramp_device_group" "device_group_resources" {
-  parent = opsramp_device_group.device_group_root.id
-  name = "Test Resources"
+  parent    = opsramp_device_group.device_group_root.id
+  name      = "Test Resources"
   resources = [opsramp_resource.resource2.uuid]
 }
 ```
 
 ```terraform
 resource "opsramp_device_group" "device_group_root" {
-  name = "Test Group"
+  name      = "Test Group"
   resources = [opsramp_resource.resource1.uuid]
 }
 ```

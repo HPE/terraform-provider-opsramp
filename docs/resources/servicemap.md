@@ -37,26 +37,26 @@ description: |-
 ## Example Usage
 ```terraform
 resource "opsramp_servicemap" "child_search" {
-  name = "Search Test"
-  type = "Resource"
-  parent = opsramp_servicemap.root.id
+  name         = "Search Test"
+  type         = "Resource"
+  parent       = opsramp_servicemap.root.id
   search_query = "resourceType = \"Server\" AND name CONTAINS \"Test\""
 }
 ```
 
 ```terraform
 resource "opsramp_servicemap" "child_resource" {
-  name = "Resource Test"
-  type = "Resource"
-  parent = opsramp_servicemap.root.id
+  name      = "Resource Test"
+  type      = "Resource"
+  parent    = opsramp_servicemap.root.id
   resources = [opsramp_resource.resource1.uuid]
 }
 ```
 
 ```terraform
 resource "opsramp_servicemap" "child_service" {
-  name = "Service Test"
-  type = "Service"
+  name   = "Service Test"
+  type   = "Service"
   parent = opsramp_servicemap.root.id
 }
 ```
@@ -68,16 +68,16 @@ resource "opsramp_servicemap" "root" {
 }
 
 resource "opsramp_servicemap" "child_resource" {
-  name = "Resource Test"
-  type = "Resource"
-  parent = opsramp_servicemap.root.id
+  name      = "Resource Test"
+  type      = "Resource"
+  parent    = opsramp_servicemap.root.id
   resources = [opsramp_resource.resource1.uuid]
 }
 
 resource "opsramp_servicemap" "child_search" {
-  name = "Search Test"
-  type = "Resource"
-  parent = opsramp_servicemap.root.id
+  name         = "Search Test"
+  type         = "Resource"
+  parent       = opsramp_servicemap.root.id
   search_query = "resourceType = \"Server\" AND name CONTAINS \"Test\""
 }
 ```

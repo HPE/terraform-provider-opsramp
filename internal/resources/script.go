@@ -17,6 +17,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
@@ -25,10 +26,11 @@ import (
 // Ensure implementation satisfies the expected interfaces
 var _ resource.Resource = &ScriptResource{}
 var _ resource.ResourceWithImportState = &ScriptResource{}
+var _ resource.ResourceWithModifyPlan = &ScriptResource{}
 
 // ScriptResource defines the resource implementation.
 type ScriptResource struct {
-	apiClient *client.OpsRampClient
+	BaseResource
 }
 
 // ScriptParameterModel represents a single script parameter in Terraform state.
@@ -110,10 +112,8 @@ func (r *ScriptResource) Schema(_ context.Context, _ resource.SchemaRequest, res
 			"description": schema.StringAttribute{
 				Optional:            true,
 				Computed:            true,
-				MarkdownDescription: "A description of the script.",
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
+				Default:             stringdefault.StaticString(""),
+				MarkdownDescription: "The description of the script.",
 			},
 			"platforms": schema.SetAttribute{
 				Optional:            true,
@@ -196,7 +196,8 @@ func (r *ScriptResource) Schema(_ context.Context, _ resource.SchemaRequest, res
 						"description": schema.StringAttribute{
 							Optional:            true,
 							Computed:            true,
-							MarkdownDescription: "A description of the parameter.",
+							Default:             stringdefault.StaticString(""),
+							MarkdownDescription: "The description of the parameter.",
 						},
 						"default_value": schema.StringAttribute{
 							Optional:            true,
@@ -245,24 +246,6 @@ func (r *ScriptResource) Schema(_ context.Context, _ resource.SchemaRequest, res
 			},
 		},
 	}
-}
-
-// Configure prepares the resource with client.
-func (r *ScriptResource) Configure(_ context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
-	if req.ProviderData == nil {
-		return
-	}
-
-	c, ok := req.ProviderData.(*client.OpsRampClient)
-	if !ok {
-		resp.Diagnostics.AddError(
-			"Unexpected Resource Configure Type",
-			"Expected *client.OpsRampClient",
-		)
-		return
-	}
-
-	r.apiClient = c
 }
 
 // resolveTenantId determines the effective tenant ID.

@@ -6,14 +6,18 @@ import (
 	"context"
 
 	"github.com/HPE/terraform-provider-opsramp/internal/client"
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
 type ServiceDeskCategoryModel struct {
+	Client      types.String `tfsdk:"client"`
 	Id          types.String `tfsdk:"id"`
 	Name        types.String `tfsdk:"name"`
 	Description types.String `tfsdk:"description"`
@@ -22,11 +26,12 @@ type ServiceDeskCategoryModel struct {
 
 // ServiceDeskCategory defines the resource implementation.
 type ServiceDeskCategory struct {
-	apiClient *client.OpsRampClient
+	BaseResource
 }
 
 // Ensure implementation satisfies the expected interfaces
 var _ resource.Resource = &ServiceDeskCategory{}
+var _ resource.ResourceWithModifyPlan = &ServiceDeskCategory{}
 
 //var _ resource.ResourceWithImportState = &ServiceDeskCategory{}
 
@@ -44,6 +49,13 @@ func (r *ServiceDeskCategory) Metadata(_ context.Context, req resource.MetadataR
 func (r *ServiceDeskCategory) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		Attributes: map[string]schema.Attribute{
+			"client": schema.StringAttribute{
+				Optional:            true,
+				MarkdownDescription: "The client (tenant) UUID where this resource should be managed. If not specified, uses the provider tenant.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
+			},
 			"id": schema.StringAttribute{
 				Optional:    true,
 				Computed:    true,
@@ -59,33 +71,19 @@ func (r *ServiceDeskCategory) Schema(_ context.Context, _ resource.SchemaRequest
 			},
 			"description": schema.StringAttribute{
 				Optional:            true,
+				Computed:            true,
+				Default:             stringdefault.StaticString(""),
 				MarkdownDescription: "The description of the ServiceDeskCategory.",
 			},
 			"ticket_type": schema.StringAttribute{
-				Optional:    true,
-				Computed:    true,
-				Description: "The ticket type of the ServiceDeskCategory.",
+				Required:    true,
+				Description: "The ticket type of the ServiceDeskCategory (e.g. incidents, problems, serviceRequests).",
+				Validators: []validator.String{
+					stringvalidator.OneOf("incidents", "problems", "serviceRequests"),
+				},
 			},
 		},
 	}
-}
-
-// Configure prepares the resource with client.
-func (r *ServiceDeskCategory) Configure(_ context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
-	if req.ProviderData == nil {
-		return
-	}
-
-	client, ok := req.ProviderData.(*client.OpsRampClient)
-	if !ok {
-		resp.Diagnostics.AddError(
-			"Unexpected ServiceDeskCategory Configure Type",
-			"Expected *client.OpsRampClient",
-		)
-		return
-	}
-
-	r.apiClient = client
 }
 
 func (r *ServiceDeskCategory) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {

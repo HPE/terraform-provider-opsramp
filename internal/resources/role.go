@@ -15,6 +15,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/boolplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
@@ -22,10 +23,11 @@ import (
 // Ensure implementation satisfies the expected interfaces
 var _ resource.Resource = &RoleResource{}
 var _ resource.ResourceWithImportState = &RoleResource{}
+var _ resource.ResourceWithModifyPlan = &RoleResource{}
 
 // RoleResource defines the resource implementation.
 type RoleResource struct {
-	apiClient *client.OpsRampClient
+	BaseResource
 }
 
 // RoleModel maps Terraform schema attributes to the provider model.
@@ -83,6 +85,8 @@ func (r *RoleResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 			},
 			"description": schema.StringAttribute{
 				Optional:            true,
+				Computed:            true,
+				Default:             stringdefault.StaticString(""),
 				MarkdownDescription: "The description of the role.",
 			},
 			"default_role": schema.BoolAttribute{
@@ -157,24 +161,6 @@ func (r *RoleResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 			},
 		},
 	}
-}
-
-// Configure prepares the resource with client.
-func (r *RoleResource) Configure(_ context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
-	if req.ProviderData == nil {
-		return
-	}
-
-	c, ok := req.ProviderData.(*client.OpsRampClient)
-	if !ok {
-		resp.Diagnostics.AddError(
-			"Unexpected Resource Configure Type",
-			"Expected *client.OpsRampClient",
-		)
-		return
-	}
-
-	r.apiClient = c
 }
 
 // Create handles the creation of the resource.

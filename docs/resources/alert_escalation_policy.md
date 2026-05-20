@@ -23,16 +23,14 @@ Manages an OpsRamp Alert Escalation Policy. Defines automated notifications and 
 
 ### Optional
 
-- `all_clients` (Boolean) Whether the policy applies to all clients.
 - `client` (String) The client (tenant) UUID where this policy should be created. If not specified, uses the provider's tenant.
-- `description` (String) A description of the alert escalation policy.
+- `description` (String) The description of the alert escalation policy.
 - `enabled_mode` (String) The enabled mode. Valid values: `ON`, `OFF`, `RECOMMEND`, `OBSERVED`.
-- `filter_criteria` (Attributes) Filter criteria to scope which alerts trigger this policy. (see [below for nested schema](#nestedatt--filter_criteria))
+- `included_clients` (Set of String) List of included client UUIDs. Only applicable when the provider is in MSP scope. If empty (or omitted), the policy applies to all clients.
 - `policy_type` (String) The policy type. Value: `ESCALATION_POLICY`.
 - `precedence` (Number) The execution order of the policy.
-- `resources` (Attributes List) Resources the policy applies to. (see [below for nested schema](#nestedatt--resources))
-- `scope` (String) The scope (client or tenant UUID) of the escalation policy.
-- `tenant_scope` (String) The tenant scope. Valid values: `CLIENT`, `MSP`.
+- `resource_search_query` (String) Filter query to scope which resources are evaluated by this policy.
+- `search_query` (String) Filter query to scope which alerts are evaluated by this policy.
 
 ### Read-Only
 
@@ -44,6 +42,7 @@ Manages an OpsRamp Alert Escalation Policy. Defines automated notifications and 
 Required:
 
 - `action` (String) The action type. Valid values: `NOTIFICATION`, `INCIDENT`.
+- `wait_mins` (Number) Minutes to wait before executing this escalation step.
 
 Optional:
 
@@ -55,7 +54,6 @@ Optional:
 - `recipients` (Attributes Set) Recipients for notification actions. (see [below for nested schema](#nestedatt--escalations--recipients))
 - `repeat_frequency` (Number) Number of minutes between repeat notifications.
 - `update_incident` (Attributes) Incident update settings. Used when action is `INCIDENT`. (see [below for nested schema](#nestedatt--escalations--update_incident))
-- `wait_mins` (Number) Minutes to wait before executing this escalation step.
 
 <a id="nestedatt--escalations--incident"></a>
 ### Nested Schema for `escalations.incident`
@@ -67,23 +65,13 @@ Optional:
 - `business_impact_id` (String) The uniqueId of the business impact.
 - `category_id` (String) The uniqueId of the service desk category.
 - `cc` (String) CC email addresses for the incident.
-- `description` (String) Incident description. Supports placeholders like `$alert.description`.
+- `description` (String) The description of the Incident. Supports placeholders like `$alert.description`.
 - `knowledge_article_ids` (Set of String) List of knowledge base article IDs to attach.
 - `priority` (String) Incident priority (e.g. `Normal`, `Low`, `High`, `Urgent`).
+- `roster_id` (String) The ID of the roster.
 - `sub_category_id` (String) The uniqueId of the service desk sub-category.
 - `subject` (String) Incident subject. Supports placeholders like `$alert.subject`.
-- `to_mail` (Attributes) Email notification recipients for the incident. (see [below for nested schema](#nestedatt--escalations--incident--to_mail))
 - `urgency_id` (String) The uniqueId of the urgency.
-
-<a id="nestedatt--escalations--incident--to_mail"></a>
-### Nested Schema for `escalations.incident.to_mail`
-
-Optional:
-
-- `rosters_ids` (Set of String) List of roster IDs for email notifications.
-- `user_groups_ids` (Set of String) List of user group IDs for email notifications.
-- `users_ids` (Set of String) List of user IDs for email notifications.
-
 
 
 <a id="nestedatt--escalations--recipients"></a>
@@ -100,120 +88,77 @@ Required:
 
 Optional:
 
-- `auto_heal_wait_time` (Number) Wait time in minutes before auto-healing.
-- `auto_resolve_incident` (Boolean) Whether to auto-resolve the incident when the alert clears.
-- `auto_resolve_unassigned_incident` (Boolean) Whether to auto-resolve unassigned incidents.
+- `auto_heal_wait_time` (Number) Wait time in minutes before auto-healing. Valid values: 0, 15, 30, 45, 60.
+- `auto_resolve_incident_mode` (String) The mode for resolving incidents. Valid values: `AutoResolveIncident`, `AutoResolveUnassignedIncident`.
 - `priority_rules` (Attributes List) Priority rules for incident updates. (see [below for nested schema](#nestedatt--escalations--update_incident--priority_rules))
-- `update_for_every_repeat_alert` (Boolean) Update incident for every repeat alert.
-- `update_incident_subject` (Boolean) Whether to update incident subject on alert changes.
-- `update_incident_subject_with_rule` (Boolean) Whether to update incident subject using rules.
+- `update_incident_mode` (String) The mode for updating incidents. Valid values: `UpdateWhenAlertStateChange`, `UpdateWithRuleWhenAlertStateChange`, `UpdateForEveryRepeatAlert`, `UpdateWithRuleForEveryRepeatAlert`.
+- `update_incident_subject_mode` (String) The mode for updating incident subject. Valid values: `UpdateIncidentSubject`, `UpdateIncidentSubjectWithRule`.
 - `update_priority_by_ml_configuration` (Boolean) Update priority by ML configuration.
-- `update_when_alert_state_change` (Boolean) Update incident when alert state changes.
-- `update_with_rule_for_every_repeat_alert` (Boolean) Update with rule for every repeat alert.
-- `update_with_rule_when_alert_state_change` (Boolean) Update with rule when alert state changes.
 
 <a id="nestedatt--escalations--update_incident--priority_rules"></a>
 ### Nested Schema for `escalations.update_incident.priority_rules`
 
-Required:
-
-- `key` (String) The alert property key (e.g. `currentState.code`).
-- `operator` (String) The operator (e.g. `Is`).
-- `value` (String) The value to match (e.g. `WARNING`, `CRITICAL`).
-
 Optional:
 
-- `business_impact_id` (String) The uniqueId of the business impact for this rule.
-- `priority` (String) The resulting priority (e.g. `Low`, `Normal`, `High`).
-- `urgency_id` (String) The uniqueId of the urgency for this rule.
-
-
-
-
-<a id="nestedatt--filter_criteria"></a>
-### Nested Schema for `filter_criteria`
-
-Optional:
-
-- `matching_type` (String) The matching type. Valid values: `ALL`, `ANY`.
-- `resource_search_query` (String) OpsQL search query for resource filtering.
-- `search_query` (String) OpsQL search query for alert filtering.
-
-
-<a id="nestedatt--resources"></a>
-### Nested Schema for `resources`
-
-Required:
-
-- `id` (String) The resource ID (e.g. client UUID).
-- `type` (String) The resource type (e.g. `CLIENT`, `PARTNER`).
+- `alert_state` (String) The value to match (e.g. `WARNING`, `CRITICAL`).
+- `business_impact_id` (String) The uniqueId of the resulting business impact for this rule.
+- `priority` (String) The resulting priority (e.g. `Very Low`, `Low`, `Normal`, `High`, `Urgent`).
+- `urgency_id` (String) The uniqueId of the resulting urgency for this rule.
 
 ## Example Usage
 ```terraform
 resource "opsramp_alert_escalation_policy" "default_alert_escalation_policy" {
-  name = "Default escalation policy"
-  tenant_scope = "CLIENT"
-  precedence = 1
+  name         = "Default escalation policy"
+  precedence   = 1
 
   enabled_mode = "OBSERVED"
 
   escalation_type = "AUTOMATIC_UNTIL_ACKNOWLEDGED_CLOSED_SUPPRESSED_TICKETED"
-  policy_type = "ESCALATION_POLICY"
+  policy_type     = "ESCALATION_POLICY"
 
   escalations = [
     {
-      wait_mins = 0
-      priority = "Normal"
-      repeat_frequency = 5
+      wait_mins          = 0
+      priority           = "Normal"
+      repeat_frequency   = 5
       notify_limit_count = 2
-      action = "NOTIFICATION"
+      action             = "NOTIFICATION"
       recipients = [
-          {
-            id = opsramp_user_group.client_user_group.unique_id
-            type = "USERGROUP"
-          }
+        {
+          id   = opsramp_user_group.client_user_group.unique_id
+          type = "USERGROUP"
+        }
       ]
-      notification_type = "basic"
+      notification_type        = "basic"
       notification_template_id = "ae6d595e-77a1-5262-a674-ea4c5afa6320"
     },
     {
       wait_mins = 5
-      action = "INCIDENT"
+      action    = "INCIDENT"
       incident = {
-        priority = "Normal"
-        subject = "Event $alert.subject have been found"
-        description = "Event description $alert.description"
-        assignee_group_id = opsramp_user_group.client_user_group.unique_id
-        category_id = opsramp_servicedesk_category.category1.id
-        sub_category_id = ""
-        business_impact_id = opsramp_servicedesk_business_impact.business_impact1.id
-        urgency_id = opsramp_servicedesk_urgency.urgency1.id
+        priority              = "Normal"
+        subject               = "Event $alert.subject have been found"
+        description           = "Event description $alert.description"
+        assignee_group_id     = opsramp_user_group.client_user_group.unique_id
+        category_id           = opsramp_servicedesk_category.category1.id
+        sub_category_id       = ""
+        business_impact_id    = opsramp_servicedesk_business_impact.business_impact1.id
+        urgency_id            = opsramp_servicedesk_urgency.urgency1.id
         knowledge_article_ids = [opsramp_kb_article.kb_article_default.id]
-        cc = "mail@example.com"
-        to_mail = {
-            users_ids: []
-            user_groups_ids: [opsramp_user_group.client_user_group.unique_id]
-            rosters_ids: []
-        }
+        cc                    = "mail@example.com"
       }
       update_incident = {
-        update_when_alert_state_change = true
-        update_for_every_repeat_alert = false
-        update_with_rule_when_alert_state_change = false
-        update_with_rule_for_every_repeat_alert = false
-        update_incident_subject = false
-        update_incident_subject_with_rule = false
-        auto_resolve_incident = true
-        auto_resolve_unassigned_incident = false
-        auto_heal_wait_time = 0
-        update_priority_by_ml_configuration = false
-        priority_rules = []
+        update_incident_mode = "UpdateWhenAlertStateChange"
+        update_incident_subject_mode = "UpdateIncidentSubject"
+        auto_resolve_incident_mode = "AutoResolveIncident"
+        auto_heal_wait_time                      = 0
+
+        update_priority_by_ml_configuration      = false
+        priority_rules                           = []
       }
     }
   ]
-  filter_criteria = {
-    search_query = "",
-    resource_search_query = "serviceGroups.uniqueId = \"${ opsramp_servicemap.sm_root.id }\""
-  }
+  search_query          = "subject CONTAINS \"test\""
+  resource_search_query = "serviceGroups.uniqueId = \"${opsramp_servicemap.sm_root.id}\""
 }
 ```

@@ -20,10 +20,11 @@ import (
 // Ensure implementation satisfies the expected interfaces
 var _ resource.Resource = &CustomIntegrationResource{}
 var _ resource.ResourceWithImportState = &CustomIntegrationResource{}
+var _ resource.ResourceWithModifyPlan = &CustomIntegrationResource{}
 
 // CustomIntegrationResource defines the resource implementation.
 type CustomIntegrationResource struct {
-	apiClient *client.OpsRampClient
+	BaseResource
 }
 
 // CustomIntegrationModel maps Terraform schema attributes to the provider model.
@@ -91,24 +92,6 @@ func (r *CustomIntegrationResource) Schema(_ context.Context, _ resource.SchemaR
 			},
 		},
 	}
-}
-
-// Configure prepares the resource with client.
-func (r *CustomIntegrationResource) Configure(_ context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
-	if req.ProviderData == nil {
-		return
-	}
-
-	c, ok := req.ProviderData.(*client.OpsRampClient)
-	if !ok {
-		resp.Diagnostics.AddError(
-			"Unexpected Resource Configure Type",
-			"Expected *client.OpsRampClient",
-		)
-		return
-	}
-
-	r.apiClient = c
 }
 
 // getTenantId determines which tenant ID to use based on the optional client parameter

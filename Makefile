@@ -5,7 +5,7 @@
 
 # Version: single source of truth for the provider version.
 # Override from CLI: make build VERSION=0.2.0
-VERSION ?= 0.1.3
+VERSION ?= 0.1.4
 
 # Disable VCS stamping so builds work in repositories without git metadata available to Go.
 GOFLAGS += -buildvcs=false

@@ -31,7 +31,7 @@ Manages an OpsRamp Credential Set.
 - `client` (String) The client UUID. If not specified, uses the provider's tenant.
 - `collector_type` (String) Collector type.
 - `community` (String, Sensitive) SNMP community string.
-- `description` (String) Description of the credential set.
+- `description` (String) The description of the credential set.
 - `domain_name` (String) Domain name.
 - `enable_password` (String, Sensitive) Enable password.
 - `encrypt_password` (String, Sensitive) Encryption password.
@@ -66,19 +66,19 @@ Manages an OpsRamp Credential Set.
 ## Example Usage
 ```terraform
 resource "opsramp_credential_set" "vmware_credential_set" {
-  name = "VMWare Credential Set"
+  name        = "VMWare Credential Set"
   description = "Credential set for VMware monitoring"
 
   credential_type = "VMWARE"
-  user_name = "administrator"
-  password = "**********"
-  port = 443
+  user_name       = "administrator"
+  password        = "**********"
+  port            = 443
 
-  secure = true
-  timeout_ms = 15000
-  security_level = "NOAUTHNOPRIV"
-  snmp_version = "V2"
+  secure              = true
+  timeout_ms          = 15000
+  security_level      = "NOAUTHNOPRIV"
+  snmp_version        = "V2"
   ssh_credential_type = "PASSWORD"
-  transport_type = "HTTP"
+  transport_type      = "HTTP"
 }
 ```

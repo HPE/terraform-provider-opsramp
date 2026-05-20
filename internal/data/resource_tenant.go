@@ -80,17 +80,22 @@ func (d *resourceTenantDataSource) Read(ctx context.Context, req datasource.Read
 		return
 	}
 
-	// tenantId := d.client.TenantId
+	var clientInfo *client.ClientResponse
+	var err error
 
-	client, err := d.apiClient.GetMeInfo()
+	if d.apiClient.Scope == "MSP" {
+		clientInfo, err = d.apiClient.GetTenantInfo(d.apiClient.TenantId)
+	} else {
+		clientInfo, err = d.apiClient.GetClientInfo(d.apiClient.TenantId)
+	}
 
 	if err != nil {
 		resp.Diagnostics.AddError("Tenant information failed to retrieve", err.Error())
 		return
 	}
 
-	data.Name = types.StringValue(client.Name)
-	data.UUID = types.StringValue(client.UniqueId)
+	data.Name = types.StringValue(clientInfo.Name)
+	data.UUID = types.StringValue(clientInfo.UniqueId)
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }

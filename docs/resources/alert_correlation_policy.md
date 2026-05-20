@@ -58,9 +58,9 @@ Optional:
 
 Required:
 
-- `entity_name` (String) The entity name (e.g., `resource_type`, `alert_metric`).
+- `entity_name` (String) The entity name.
 - `entity_value` (String) The value to compare against.
-- `operator` (String) The comparison operator (e.g., `Equals`).
+- `operator` (String) The comparison operator.
 
 
 
@@ -69,8 +69,8 @@ Required:
 
 Required:
 
-- `match_type` (String) The type of match (e.g., `Identical`).
-- `property` (String) The alert property to match on (e.g., `service_group`).
+- `match_type` (String) The type of match.
+- `property` (String) The alert property to match on.
 
 
 
@@ -89,8 +89,8 @@ Optional:
 
 Required:
 
-- `match_type` (String) The type of match (e.g., `Identical`).
-- `property` (String) The alert property to match on (e.g., `service_group`).
+- `match_type` (String) The type of match.
+- `property` (String) The alert property to match on.
 
 ## Example Usage
 ```terraform
