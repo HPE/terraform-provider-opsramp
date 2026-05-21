@@ -14,9 +14,9 @@ type OpsQLSearchRequest struct {
 	FilterCriteria string   `json:"filterCriteria"`
 }
 
-func (c *OpsRampClient) GetDeviceTypes(tenantId string) ([]string, error) {
+func (c *OpsRampClient) GetResourceTypes(tenantId string) ([]string, error) {
 	// Prepare the URL, Method and Payload fo the Client
-	apiUrl := fmt.Sprintf("%s/api/v2/tenants/%s/resourceType/minimal", c.BaseUrl, tenantId)
+	apiUrl := fmt.Sprintf("%s/api/v2/tenants/%s/allResourceTypes/minimal", c.BaseUrl, tenantId)
 	method := "GET"
 
 	// Create a new Request
@@ -26,15 +26,15 @@ func (c *OpsRampClient) GetDeviceTypes(tenantId string) ([]string, error) {
 	}
 
 	// Preparing Response Body to return and convert it to Golang Map Object
-	var responseBody []DeviceType
+	var responseBody []ResourceType
 	err = json.Unmarshal([]byte(body), &responseBody)
 	if err != nil {
 		return nil, err
 	}
 
 	var response []string
-	for _, deviceType := range responseBody {
-		response = append(response, deviceType.Name)
+	for _, resourceType := range responseBody {
+		response = append(response, resourceType.Name)
 	}
 
 	// Return ID of the record created

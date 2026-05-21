@@ -3,10 +3,11 @@
 
 package client
 
-type DeviceType struct {
-	Id   int    `json:"id"`
-	Name string `json:"name"`
-	Path string `json:"path"`
+type ResourceType struct {
+	Id          int    `json:"id"`
+	Name        string `json:"name"`
+	Path        string `json:"path"`
+	DisplayName string `json:"displayName"`
 }
 
 type CreateResource struct {

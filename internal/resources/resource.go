@@ -360,7 +360,7 @@ func (r *Resource) ModifyPlan(ctx context.Context, req resource.ModifyPlanReques
 
 	// Validate Device Type
 	if plan.ResourceType.ValueString() != "" {
-		deviceTypes, err := r.apiClient.GetDeviceTypes(tenantId)
+		deviceTypes, err := r.apiClient.GetResourceTypes(tenantId)
 		if err != nil {
 			resp.Diagnostics.AddError("Error fetching GetDeviceTypes", err.Error())
 			return
