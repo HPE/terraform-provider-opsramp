@@ -79,9 +79,20 @@ func (c *OpsRampClient) UpdateUser(tenantId string, userId string, userData Upda
 
 	// Preparing Response Body
 	var responseBody UserResponse
-	err = json.Unmarshal([]byte(body), &responseBody)
-	if err != nil {
-		return nil, err
+
+	if len(body) == 0 {
+		// If the response body is empty, look for the user resource
+		response, err := c.GetUser(tenantId, userId)
+		if err != nil {
+			return nil, fmt.Errorf("user updated but failed to retrieve updated user: %w", err)
+		}
+
+		responseBody = *response
+	} else {
+		err = json.Unmarshal([]byte(body), &responseBody)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return &responseBody, nil

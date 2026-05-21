@@ -69,6 +69,13 @@ type UserModel struct {
 	ChangePassword    types.Bool              `tfsdk:"change_password"`
 }
 
+func optionalStringValue(v string) types.String {
+	if strings.TrimSpace(v) == "" {
+		return types.StringNull()
+	}
+	return types.StringValue(v)
+}
+
 // NewUser creates a new instance of the resource.
 func NewUser() resource.Resource {
 	return &UserResource{}
@@ -178,10 +185,8 @@ func (r *UserResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 				MarkdownDescription: "The authentication type (LOCAL, SSO, etc.).",
 			},
 			"status": schema.StringAttribute{
-				Optional:            true,
 				Computed:            true,
-				Default:             stringdefault.StaticString("Active"),
-				MarkdownDescription: "The status of the user (Active, Inactive).",
+				MarkdownDescription: "The status of the user (`Active`, `DEACTIVATE`, `TERMINATE`).",
 			},
 			"roles": schema.SetAttribute{
 				Optional:            true,
@@ -204,15 +209,24 @@ func (r *UserResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 					Attributes: map[string]schema.Attribute{
 						"notify_type": schema.StringAttribute{
 							Required:            true,
-							MarkdownDescription: "The notification type (Account Information, Alert Notification, Report Notification).",
+							MarkdownDescription: "The notification type (`Account Information`, `Alert Notification`, `Report Notification`, `Export Notification`, `Login Activity Notification`).",
+							Validators: []validator.String{
+								stringvalidator.OneOf("Account Information", "Alert Notification", "Report Notification", "Export Notification", "Login Activity Notification"),
+							},
 						},
 						"notify_method": schema.StringAttribute{
 							Required:            true,
-							MarkdownDescription: "The notification method (Email, SMS, No Notify).",
+							MarkdownDescription: "The notification method (`Email`, `No Notify`).",
+							Validators: []validator.String{
+								stringvalidator.OneOf("Email", "No Notify"),
+							},
 						},
 						"notify_input_type": schema.StringAttribute{
 							Optional:            true,
-							MarkdownDescription: "The notification input type (Primary Email, etc.).",
+							MarkdownDescription: "The notification input type (`Primary Email`, `Alternate Email`, `Primary Alternate Email`).",
+							Validators: []validator.String{
+								stringvalidator.OneOf("Primary Email", "Alternate Email", "Primary Alternate Email"),
+							},
 						},
 						"notify_recurring_report": schema.BoolAttribute{
 							Optional:            true,
@@ -294,7 +308,6 @@ func (r *UserResource) Create(ctx context.Context, req resource.CreateRequest, r
 		MobileNumber:      plan.MobileNumber.ValueString(),
 		TimeZone:          timeZone,
 		AuthType:          plan.AuthType.ValueString(),
-		Status:            plan.Status.ValueString(),
 		Roles:             roles,
 		UserNotifications: userNotifications,
 		ChangePassword:    plan.ChangePassword.ValueBool(),
@@ -308,6 +321,7 @@ func (r *UserResource) Create(ctx context.Context, req resource.CreateRequest, r
 
 	// Only update truly computed values (id) - preserve plan values for others
 	plan.Id = types.StringValue(created.Id)
+	plan.Status = types.StringValue(created.Status)
 
 	ugElems := make([]attr.Value, len(created.UserGroups))
 	for i, group := range created.UserGroups {
@@ -353,16 +367,16 @@ func (r *UserResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 	state.LoginName = types.StringValue(existing.LoginName)
 	state.FirstName = types.StringValue(existing.FirstName)
 	state.LastName = types.StringValue(existing.LastName)
-	state.Designation = types.StringValue(existing.Designation)
-	state.Address = types.StringValue(existing.Address)
-	state.City = types.StringValue(existing.City)
-	state.State = types.StringValue(existing.State)
-	state.Zip = types.StringValue(existing.Zip)
-	state.Country = types.StringValue(existing.Country)
+	state.Designation = optionalStringValue(existing.Designation)
+	state.Address = optionalStringValue(existing.Address)
+	state.City = optionalStringValue(existing.City)
+	state.State = optionalStringValue(existing.State)
+	state.Zip = optionalStringValue(existing.Zip)
+	state.Country = optionalStringValue(existing.Country)
 	state.Email = types.StringValue(existing.Email)
-	state.AltEmail = types.StringValue(existing.AltEmail)
-	state.PhoneNumber = types.StringValue(existing.PhoneNumber)
-	state.MobileNumber = types.StringValue(existing.MobileNumber)
+	state.AltEmail = optionalStringValue(existing.AltEmail)
+	state.PhoneNumber = optionalStringValue(existing.PhoneNumber)
+	state.MobileNumber = optionalStringValue(existing.MobileNumber)
 	if existing.TimeZone != nil {
 		state.TimeZone = types.StringValue(existing.TimeZone.Name)
 	}
@@ -460,7 +474,6 @@ func (r *UserResource) Update(ctx context.Context, req resource.UpdateRequest, r
 		MobileNumber:      plan.MobileNumber.ValueString(),
 		TimeZone:          timeZone,
 		AuthType:          plan.AuthType.ValueString(),
-		Status:            plan.Status.ValueString(),
 		Roles:             roles,
 		UserNotifications: userNotifications,
 	}
@@ -475,6 +488,7 @@ func (r *UserResource) Update(ctx context.Context, req resource.UpdateRequest, r
 	}
 
 	plan.Id = state.Id
+	plan.Status = types.StringValue(updated.Status)
 
 	ugElems := make([]attr.Value, len(updated.UserGroups))
 	for i, group := range updated.UserGroups {
@@ -554,8 +568,8 @@ func (r *UserResource) ImportState(ctx context.Context, req resource.ImportState
 		FirstName:         types.StringValue(existing.FirstName),
 		LastName:          types.StringValue(existing.LastName),
 		Email:             types.StringValue(existing.Email),
-		PhoneNumber:       types.StringValue(existing.PhoneNumber),
-		MobileNumber:      types.StringValue(existing.MobileNumber),
+		PhoneNumber:       optionalStringValue(existing.PhoneNumber),
+		MobileNumber:      optionalStringValue(existing.MobileNumber),
 		TimeZone:          types.StringValue(timeZoneName),
 		AuthType:          types.StringValue(existing.AuthType),
 		Status:            types.StringValue(existing.Status),

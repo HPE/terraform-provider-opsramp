@@ -14,11 +14,12 @@ resource "opsramp_user" "admin" {
   ]
 
   # User notification preferences
-  user_notifications = [{
-    notify_type             = "Account Information"
-    notify_method           = "Email"
-    notify_input_type       = "Primary Email"
-    notify_recurring_report = false
+  user_notifications = [
+    {
+      notify_type             = "Account Information"
+      notify_method           = "Email"
+      notify_input_type       = "Primary Email"
+      notify_recurring_report = false
     },
     {
       notify_type             = "Alert Notification"
@@ -29,5 +30,16 @@ resource "opsramp_user" "admin" {
       notify_type             = "Report Notification"
       notify_method           = "No Notify"
       notify_recurring_report = false
-  }]
+    },
+    {
+      notify_type             = "Export Notification"
+      notify_method           = "No Notify"
+      notify_recurring_report = false
+    },
+    {
+      notify_type             = "Login Activity Notification"
+      notify_method           = "No Notify"
+      notify_recurring_report = false
+    }
+  ]
 }

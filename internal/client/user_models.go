@@ -51,7 +51,6 @@ type CreateUser struct {
 	UserGroups        []UserGroupRef     `json:"userGroups,omitempty"`
 	ChangePassword    bool               `json:"changePassword,omitempty"`
 	AuthType          string             `json:"authType,omitempty"`
-	Status            string             `json:"status,omitempty"`
 	OrganizationUnits []OrganizationUnit `json:"organizationUnits,omitempty"`
 }
 
@@ -74,7 +73,6 @@ type UpdateUser struct {
 	Roles             []UserRoleRef      `json:"roles,omitempty"`
 	UserGroups        []UserGroupRef     `json:"userGroups,omitempty"`
 	AuthType          string             `json:"authType,omitempty"`
-	Status            string             `json:"status,omitempty"`
 	OrganizationUnits []OrganizationUnit `json:"organizationUnits,omitempty"`
 }
 

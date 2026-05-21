@@ -37,7 +37,6 @@ Manages an OpsRamp User resource.
 - `phone_number` (String) The phone number of the user.
 - `roles` (Set of String) List of role names assigned to the user.
 - `state` (String) The state/province of the user.
-- `status` (String) The status of the user (Active, Inactive).
 - `time_zone` (String) The time zone of the user.
 - `user_notifications` (Attributes List) User notification preferences. (see [below for nested schema](#nestedatt--user_notifications))
 - `zip` (String) The zip/postal code of the user.
@@ -45,6 +44,7 @@ Manages an OpsRamp User resource.
 ### Read-Only
 
 - `id` (String) The unique identifier of the user.
+- `status` (String) The status of the user (`Active`, `DEACTIVATE`, `TERMINATE`).
 - `user_groups` (Set of String) List of user group IDs the user belongs to. Read-only - manage user_group assignments via the user_group resource.
 
 <a id="nestedatt--user_notifications"></a>
@@ -52,12 +52,12 @@ Manages an OpsRamp User resource.
 
 Required:
 
-- `notify_method` (String) The notification method (Email, SMS, No Notify).
-- `notify_type` (String) The notification type (Account Information, Alert Notification, Report Notification).
+- `notify_method` (String) The notification method (`Email`, `No Notify`).
+- `notify_type` (String) The notification type (`Account Information`, `Alert Notification`, `Report Notification`, `Export Notification`, `Login Activity Notification`).
 
 Optional:
 
-- `notify_input_type` (String) The notification input type (Primary Email, etc.).
+- `notify_input_type` (String) The notification input type (`Primary Email`, `Alternate Email`, `Primary Alternate Email`).
 - `notify_recurring_report` (Boolean) Whether to notify for recurring reports.
 
 ## Example Usage
@@ -78,11 +78,12 @@ resource "opsramp_user" "admin" {
   ]
 
   # User notification preferences
-  user_notifications = [{
-    notify_type             = "Account Information"
-    notify_method           = "Email"
-    notify_input_type       = "Primary Email"
-    notify_recurring_report = false
+  user_notifications = [
+    {
+      notify_type             = "Account Information"
+      notify_method           = "Email"
+      notify_input_type       = "Primary Email"
+      notify_recurring_report = false
     },
     {
       notify_type             = "Alert Notification"
@@ -93,6 +94,17 @@ resource "opsramp_user" "admin" {
       notify_type             = "Report Notification"
       notify_method           = "No Notify"
       notify_recurring_report = false
-  }]
+    },
+    {
+      notify_type             = "Export Notification"
+      notify_method           = "No Notify"
+      notify_recurring_report = false
+    },
+    {
+      notify_type             = "Login Activity Notification"
+      notify_method           = "No Notify"
+      notify_recurring_report = false
+    }
+  ]
 }
 ```
