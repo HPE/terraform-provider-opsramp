@@ -8,20 +8,6 @@ import (
 	"fmt"
 )
 
-type FilterCriteria struct {
-	Id          int    `json:"id,omitempty"`
-	SearchQuery string `json:"searchQuery"`
-}
-
-type DeviceGroupAPI struct {
-	Id             string          `json:"id,omitempty"`
-	Name           string          `json:"name"`
-	EntityType     string          `json:"entityType,omitempty"`
-	FilterCriteria *FilterCriteria `json:"filterCriteria,omitempty"`
-	Parent         *Parent         `json:"parent,omitempty"`
-	Description    string          `json:"description,omitempty"`
-}
-
 // CreateDeviceGroup - Create new DeviceGroup (unofficial)
 // api: POST v3 /api/v2/tenants/{clientId}/deviceGroups
 func (c *OpsRampClient) CreateDeviceGroup(tenantId string, deviceGroup DeviceGroupAPI) (*DeviceGroupAPI, error) {
@@ -87,10 +73,10 @@ func (c *OpsRampClient) GetDeviceGroup(tenantId string, deviceGroupId string) (*
 
 }
 
-// GetDeviceGroupChilds - Get child resources assigned to a device group.
+// GetDeviceGroupChilds - Get child resources assigned to a device group manually.
 // api: GET /api/v2/tenants/{clientId}/deviceGroups/{resourceGroupId}/childs/search
 func (c *OpsRampClient) GetDeviceGroupChilds(tenantId string, deviceGroupId string) ([]SearchResource, error) {
-	apiUrl := fmt.Sprintf("%s/api/v2/tenants/%s/deviceGroups/%s/childs/search", c.BaseUrl, tenantId, deviceGroupId)
+	apiUrl := fmt.Sprintf("%s/api/v2/tenants/%s/deviceGroups/%s/childs/search?assignType=MANUAL&type=RESOURCE", c.BaseUrl, tenantId, deviceGroupId)
 	method := "GET"
 
 	body, err := c.NewJsonRequest(method, apiUrl, nil)
@@ -121,13 +107,6 @@ func (c *OpsRampClient) DeleteDeviceGroup(tenantId string, deviceGroupId string)
 	}
 
 	return nil
-}
-
-// DeviceGroupChild represents a device/resource entry in a device group's child list.
-type DeviceGroupChild struct {
-	Id   string `json:"id"`
-	Name string `json:"name,omitempty"`
-	Type string `json:"type"`
 }
 
 // AddDeviceGroupChilds - Add resources to a device group.

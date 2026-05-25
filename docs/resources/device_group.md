@@ -21,7 +21,7 @@ description: |-
 
 - `client` (String) The client (tenant) UUID where this device group should be created. If not specified, uses the provider's tenant.
 - `id` (String) Unique identifier for the group.
-- `parent` (String)
+- `parent_id` (String)
 - `resources` (Set of String) Set of resource IDs to assign to this device group.
 - `search_query` (String) The search query for selecting resources.
 
@@ -32,7 +32,7 @@ description: |-
 ## Example Usage
 ```terraform
 resource "opsramp_device_group" "device_group_query" {
-  parent       = opsramp_device_group.device_group_root.id
+  parent_id    = opsramp_device_group.device_group_root.id
   name         = "Test Queries"
   search_query = format("resourceType = \"Server\" AND uuid = \"%s\"", opsramp_resource.resource3.uuid)
 }
@@ -40,7 +40,7 @@ resource "opsramp_device_group" "device_group_query" {
 
 ```terraform
 resource "opsramp_device_group" "device_group_resources" {
-  parent    = opsramp_device_group.device_group_root.id
+  parent_id = opsramp_device_group.device_group_root.id
   name      = "Test Resources"
   resources = [opsramp_resource.resource2.uuid]
 }

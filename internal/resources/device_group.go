@@ -14,7 +14,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/setplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
@@ -29,7 +28,7 @@ type DeviceGroupModel struct {
 	Id          types.String `tfsdk:"id"`
 	Name        types.String `tfsdk:"name"`
 	EntityType  types.String `tfsdk:"entity_type"`
-	Parent      types.String `tfsdk:"parent"`
+	ParentId    types.String `tfsdk:"parent_id"`
 	SearchQuery types.String `tfsdk:"search_query"`
 	Resources   types.Set    `tfsdk:"resources"`
 }
@@ -71,7 +70,7 @@ func (r *DeviceGroupResource) Schema(ctx context.Context, req resource.SchemaReq
 			"name": schema.StringAttribute{
 				Required: true,
 			},
-			"parent": schema.StringAttribute{
+			"parent_id": schema.StringAttribute{
 				Optional: true,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
@@ -93,9 +92,6 @@ func (r *DeviceGroupResource) Schema(ctx context.Context, req resource.SchemaReq
 				Computed:            true,
 				ElementType:         types.StringType,
 				MarkdownDescription: "Set of resource IDs to assign to this device group.",
-				PlanModifiers: []planmodifier.Set{
-					setplanmodifier.UseStateForUnknown(),
-				},
 			},
 		},
 	}
@@ -105,14 +101,14 @@ func (r *DeviceGroupResource) Schema(ctx context.Context, req resource.SchemaReq
 func translatePlanToDeviceGroupModel(plan DeviceGroupModel) client.DeviceGroupAPI {
 	var parent *client.Parent
 
-	if plan.Parent.ValueString() != "" {
+	if plan.ParentId.ValueString() != "" {
 		parent = &client.Parent{
-			Id: plan.Parent.ValueString(),
+			Id: plan.ParentId.ValueString(),
 		}
 	}
 
 	var filterCriteria *client.FilterCriteria
-	if !plan.SearchQuery.IsNull() && !plan.SearchQuery.IsUnknown() {
+	if !plan.SearchQuery.IsNull() && !plan.SearchQuery.IsUnknown() && plan.SearchQuery.ValueString() != "" {
 		filterCriteria = &client.FilterCriteria{
 			SearchQuery: plan.SearchQuery.ValueString(),
 		}
@@ -127,6 +123,22 @@ func translatePlanToDeviceGroupModel(plan DeviceGroupModel) client.DeviceGroupAP
 	}
 
 	return deviceGroup
+}
+
+func mapDeviceGroupResponseToModel(api *client.DeviceGroupAPI, model *DeviceGroupModel) {
+	model.Id = types.StringValue(api.Id)
+	model.Name = types.StringValue(api.Name)
+	model.EntityType = types.StringValue(api.EntityType)
+
+	if api.FilterCriteria != nil && api.FilterCriteria.SearchQuery != "" {
+		model.SearchQuery = types.StringValue(api.FilterCriteria.SearchQuery)
+	} else {
+		model.SearchQuery = types.StringValue("")
+	}
+
+	if api.Parent != nil {
+		model.ParentId = types.StringValue(api.Parent.Id)
+	}
 }
 
 func deviceGroupResourcesSet(ctx context.Context, ids []string) (types.Set, diag.Diagnostics) {
@@ -197,44 +209,29 @@ func (r *DeviceGroupResource) Create(ctx context.Context, req resource.CreateReq
 
 	// Create the device group. Parent-scoped creation may intermittently return 500,
 	// so retry a few times for that specific transient error.
-	newDeviceGroup, err := createDeviceGroupWithRetry(r.apiClient, tenantId, deviceGroup, !plan.Parent.IsNull() && plan.Parent.ValueString() != "")
+	newDeviceGroup, err := createDeviceGroupWithRetry(r.apiClient, tenantId, deviceGroup, !plan.ParentId.IsNull() && plan.ParentId.ValueString() != "")
 	if err != nil {
 		resp.Diagnostics.AddError("Create Error", err.Error())
 		return
 	}
 
-	// Assign the backend response directly into the state
-	plan.Id = types.StringValue(newDeviceGroup.Id)
-	plan.EntityType = types.StringValue(newDeviceGroup.EntityType)
+	mapDeviceGroupResponseToModel(newDeviceGroup, &plan)
 
-	// Set search_query from API response
-	plan.SearchQuery = types.StringValue("")
-	if newDeviceGroup.FilterCriteria != nil && newDeviceGroup.FilterCriteria.SearchQuery != "" {
-		plan.SearchQuery = types.StringValue(newDeviceGroup.FilterCriteria.SearchQuery)
-	}
-
-	if newDeviceGroup.Parent != nil {
-		plan.Parent = types.StringValue(newDeviceGroup.Parent.Id)
+	resource_ids := []string{}
+	if !plan.Resources.IsNull() && !plan.Resources.IsUnknown() && len(plan.Resources.Elements()) > 0 {
+		resource_ids = setToStringSlice(plan.Resources)
 	}
 
 	// Add child resources if specified
-	if !plan.Resources.IsNull() && !plan.Resources.IsUnknown() && len(plan.Resources.Elements()) > 0 {
-		ids := setToStringSlice(plan.Resources)
-		if err := r.apiClient.AddDeviceGroupChilds(tenantId, newDeviceGroup.Id, ids); err != nil {
-			resp.Diagnostics.AddError("Error adding resources to device group", err.Error())
-			return
-		}
+	if err := r.apiClient.AddDeviceGroupChilds(tenantId, newDeviceGroup.Id, resource_ids); err != nil {
+		resp.Diagnostics.AddError("Error adding resources to device group", err.Error())
+		return
 	}
 
-	if !plan.Resources.IsNull() && !plan.Resources.IsUnknown() {
-		// Preserve configured resources in state after successful assignment so
-		// Terraform sees the same values it planned during apply.
-	} else {
-		plan.Resources, diags = r.readDeviceGroupResources(ctx, tenantId, newDeviceGroup.Id)
-		resp.Diagnostics.Append(diags...)
-		if resp.Diagnostics.HasError() {
-			return
-		}
+	plan.Resources, diags = r.readDeviceGroupResources(ctx, tenantId, newDeviceGroup.Id)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
 	}
 
 	// Save new state back to Terraform
@@ -268,33 +265,15 @@ func (r *DeviceGroupResource) Read(ctx context.Context, req resource.ReadRequest
 		return
 	}
 
-	// has parent?
-	var parentId types.String
-	if backendDeviceGroup.Parent != nil {
-		parentId = types.StringValue(backendDeviceGroup.Parent.Id)
-	}
-
-	// Set search_query from API response
-	var searchQuery types.String
-	if backendDeviceGroup.FilterCriteria != nil && backendDeviceGroup.FilterCriteria.SearchQuery != "" {
-		searchQuery = types.StringValue(backendDeviceGroup.FilterCriteria.SearchQuery)
-	}
-
 	resources, diags := r.readDeviceGroupResources(ctx, tenantId, backendDeviceGroup.Id)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	newState := DeviceGroupModel{
-		Client:      state.Client,
-		Id:          types.StringValue(backendDeviceGroup.Id),
-		Name:        types.StringValue(backendDeviceGroup.Name),
-		EntityType:  types.StringValue(backendDeviceGroup.EntityType),
-		Parent:      parentId,
-		SearchQuery: searchQuery,
-		Resources:   resources,
-	}
+	newState := DeviceGroupModel{Client: state.Client}
+	mapDeviceGroupResponseToModel(backendDeviceGroup, &newState)
+	newState.Resources = resources
 
 	diags = resp.State.Set(ctx, &newState)
 	resp.Diagnostics.Append(diags...)
@@ -321,43 +300,26 @@ func (r *DeviceGroupResource) Update(ctx context.Context, req resource.UpdateReq
 		return
 	}
 
-	// Assign the backend response directly into the state
-	state.Id = types.StringValue(newDeviceGroup.Id)
-	state.Name = plan.Name
+	mapDeviceGroupResponseToModel(newDeviceGroup, &state)
 	state.Client = plan.Client
-	state.EntityType = types.StringValue(newDeviceGroup.EntityType)
 
-	// Set search_query from API response
-	if !plan.SearchQuery.IsNull() && !plan.SearchQuery.IsUnknown() {
-		state.SearchQuery = plan.SearchQuery
-	} else if newDeviceGroup.FilterCriteria != nil && newDeviceGroup.FilterCriteria.SearchQuery != "" {
-		state.SearchQuery = types.StringValue(newDeviceGroup.FilterCriteria.SearchQuery)
-	} else {
-		state.SearchQuery = types.StringValue("")
-	}
+	// Unset resources is equivalent to []: always reconcile.
+	oldIds := setToStringSlice(state.Resources)
+	newIds := setToStringSlice(plan.Resources)
+	toAdd := stringSetDiff(newIds, oldIds)
+	toRemove := stringSetDiff(oldIds, newIds)
 
-	if newDeviceGroup.Parent != nil {
-		state.Parent = types.StringValue(newDeviceGroup.Parent.Id)
-	}
-
-	// Reconcile child resources only when the desired plan is explicitly known.
-	if !plan.Resources.IsNull() && !plan.Resources.IsUnknown() {
-		oldIds := setToStringSlice(state.Resources)
-		newIds := setToStringSlice(plan.Resources)
-		toAdd := stringSetDiff(newIds, oldIds)
-		toRemove := stringSetDiff(oldIds, newIds)
-
-		if len(toAdd) > 0 {
-			if err := r.apiClient.AddDeviceGroupChilds(tenantId, newDeviceGroup.Id, toAdd); err != nil {
-				resp.Diagnostics.AddError("Error adding resources to device group", err.Error())
-				return
-			}
+	if len(toAdd) > 0 {
+		if err := r.apiClient.AddDeviceGroupChilds(tenantId, newDeviceGroup.Id, toAdd); err != nil {
+			resp.Diagnostics.AddError("Error adding resources to device group", err.Error())
+			return
 		}
-		if len(toRemove) > 0 {
-			if err := r.apiClient.RemoveDeviceGroupChilds(tenantId, newDeviceGroup.Id, toRemove); err != nil {
-				resp.Diagnostics.AddError("Error removing resources from device group", err.Error())
-				return
-			}
+	}
+
+	if len(toRemove) > 0 {
+		if err := r.apiClient.RemoveDeviceGroupChilds(tenantId, newDeviceGroup.Id, toRemove); err != nil {
+			resp.Diagnostics.AddError("Error removing resources from device group", err.Error())
+			return
 		}
 	}
 
@@ -365,7 +327,7 @@ func (r *DeviceGroupResource) Update(ctx context.Context, req resource.UpdateReq
 	if !plan.Resources.IsNull() && !plan.Resources.IsUnknown() {
 		state.Resources = plan.Resources
 	} else {
-		state.Resources, diags = r.readDeviceGroupResources(ctx, tenantId, newDeviceGroup.Id)
+		state.Resources, diags = deviceGroupResourcesSet(ctx, newIds)
 		resp.Diagnostics.Append(diags...)
 		if resp.Diagnostics.HasError() {
 			return
@@ -394,4 +356,23 @@ func (r *DeviceGroupResource) Delete(ctx context.Context, req resource.DeleteReq
 	}
 
 	resp.State.RemoveResource(ctx)
+}
+
+func (r *DeviceGroupResource) ModifyPlan(ctx context.Context, req resource.ModifyPlanRequest, resp *resource.ModifyPlanResponse) {
+	r.BaseResource.ModifyPlan(ctx, req, resp)
+	if resp.Diagnostics.HasError() || req.Plan.Raw.IsNull() {
+		return
+	}
+
+	var plan DeviceGroupModel
+	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	// Removing the resources attribute from config is equivalent to resources = [].
+	if plan.Resources.IsUnknown() {
+		plan.Resources, _ = deviceGroupResourcesSet(ctx, nil)
+		resp.Diagnostics.Append(resp.Plan.Set(ctx, plan)...)
+	}
 }

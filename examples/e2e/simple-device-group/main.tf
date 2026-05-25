@@ -32,17 +32,24 @@ resource "opsramp_resource" "resource3" {
 
 resource "opsramp_device_group" "device_group_root" {
   name      = "Test Groups"
-  resources = [opsramp_resource.resource1.uuid]
+  resources = []
 }
 
 resource "opsramp_device_group" "device_group_resources" {
-  parent    = opsramp_device_group.device_group_root.id
+  parent_id = opsramp_device_group.device_group_root.id
   name      = "Test Resources"
-  resources = [opsramp_resource.resource2.uuid]
+  resources = [opsramp_resource.resource1.uuid]
 }
 
 resource "opsramp_device_group" "device_group_query" {
-  parent       = opsramp_device_group.device_group_root.id
+  parent_id    = opsramp_device_group.device_group_root.id
   name         = "Test Queries"
-  search_query = format("resourceType = \"Linux\" AND uuid = \"%s\"", opsramp_resource.resource3.uuid)
+  search_query = format("resourceType = \"Linux\" AND uuid = \"%s\"", opsramp_resource.resource2.uuid)
+}
+
+resource "opsramp_device_group" "device_group_mixed" {
+  parent_id    = opsramp_device_group.device_group_root.id
+  name         = "Test Queries Mixed"
+  search_query = format("resourceType = \"Linux\" AND uuid = \"%s\"", opsramp_resource.resource2.uuid)
+  resources    = [opsramp_resource.resource3.uuid]
 }
