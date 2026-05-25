@@ -50,7 +50,7 @@ func (r *BaseResource) ModifyPlan(ctx context.Context, req resource.ModifyPlanRe
 	var clientVal types.String
 	diag := req.Plan.GetAttribute(ctx, path.Root("client"), &clientVal)
 	if diag.HasError() {
-		resp.Diagnostics.Append(diag...)
+		// The resource schema does not have a "client" attribute; skip scope validation.
 		return
 	}
 
