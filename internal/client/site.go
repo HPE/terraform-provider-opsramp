@@ -9,7 +9,7 @@ import (
 )
 
 // CreateSite creates a new site
-func (c *OpsRampClient) CreateSite(tenantId string, site Site) (*SiteResponse, error) {
+func (c *OpsRampClient) CreateSite(tenantId string, site Site) (*Site, error) {
 	rb, err := json.Marshal(site)
 	if err != nil {
 		return nil, err
@@ -23,7 +23,7 @@ func (c *OpsRampClient) CreateSite(tenantId string, site Site) (*SiteResponse, e
 		return nil, err
 	}
 
-	var responseBody SiteResponse
+	var responseBody Site
 	err = json.Unmarshal([]byte(body), &responseBody)
 	if err != nil {
 		return nil, err
@@ -33,7 +33,7 @@ func (c *OpsRampClient) CreateSite(tenantId string, site Site) (*SiteResponse, e
 }
 
 // GetSite retrieves a specific site by ID
-func (c *OpsRampClient) GetSite(tenantId string, siteId string) (*SiteResponse, error) {
+func (c *OpsRampClient) GetSite(tenantId string, siteId string) (*Site, error) {
 	apiUrl := fmt.Sprintf("%s/api/v2/tenants/%s/sites/%s", c.BaseUrl, tenantId, siteId)
 	method := "GET"
 
@@ -42,7 +42,7 @@ func (c *OpsRampClient) GetSite(tenantId string, siteId string) (*SiteResponse, 
 		return nil, err
 	}
 
-	var responseBody SiteResponse
+	var responseBody Site
 	err = json.Unmarshal([]byte(body), &responseBody)
 	if err != nil {
 		return nil, err
@@ -52,7 +52,7 @@ func (c *OpsRampClient) GetSite(tenantId string, siteId string) (*SiteResponse, 
 }
 
 // UpdateSite updates an existing site
-func (c *OpsRampClient) UpdateSite(tenantId string, siteId string, site Site) (*SiteResponse, error) {
+func (c *OpsRampClient) UpdateSite(tenantId string, siteId string, site Site) (*Site, error) {
 	rb, err := json.Marshal(site)
 	if err != nil {
 		return nil, err
@@ -66,7 +66,7 @@ func (c *OpsRampClient) UpdateSite(tenantId string, siteId string, site Site) (*
 		return nil, err
 	}
 
-	var responseBody SiteResponse
+	var responseBody Site
 	err = json.Unmarshal([]byte(body), &responseBody)
 	if err != nil {
 		return nil, err
@@ -104,7 +104,7 @@ func (c *OpsRampClient) GetSites(tenantId string) ([]SiteMinimal, error) {
 }
 
 // SearchSites searches for sites using a query
-func (c *OpsRampClient) SearchSites(tenantId string, query string) ([]SiteResponse, error) {
+func (c *OpsRampClient) SearchSites(tenantId string, query string) ([]Site, error) {
 	apiUrl := fmt.Sprintf("%s/api/v2/tenants/%s/sites/search?q=%s", c.BaseUrl, tenantId, query)
 	method := "GET"
 
@@ -113,11 +113,47 @@ func (c *OpsRampClient) SearchSites(tenantId string, query string) ([]SiteRespon
 		return nil, err
 	}
 
-	var responseBody []SiteResponse
+	var responseBody []Site
 	err = json.Unmarshal([]byte(body), &responseBody)
 	if err != nil {
 		return nil, err
 	}
 
 	return responseBody, nil
+}
+
+// AddSiteChilds - Add resources to a site.
+// api: POST /api/v2/tenants/{clientId}/sites/{siteId}/childs
+func (c *OpsRampClient) AddSiteChilds(tenantId string, siteId string, ids []string) error {
+	childs := make([]SiteChild, len(ids))
+	for i, id := range ids {
+		childs[i] = SiteChild{Uuid: id}
+	}
+
+	rb, err := json.Marshal(childs)
+	if err != nil {
+		return err
+	}
+
+	apiUrl := fmt.Sprintf("%s/api/v2/tenants/%s/sites/%s/childs", c.BaseUrl, tenantId, siteId)
+	_, err = c.NewJsonRequest("POST", apiUrl, rb)
+	return err
+}
+
+// RemoveSiteChilds - Remove resources from a site.
+// api: DELETE /api/v2/tenants/{clientId}/sites/{siteId}/childs
+func (c *OpsRampClient) RemoveSiteChilds(tenantId string, siteId string, ids []string) error {
+	childs := make([]SiteChild, len(ids))
+	for i, id := range ids {
+		childs[i] = SiteChild{Uuid: id}
+	}
+
+	rb, err := json.Marshal(childs)
+	if err != nil {
+		return err
+	}
+
+	apiUrl := fmt.Sprintf("%s/api/v2/tenants/%s/sites/%s/childs", c.BaseUrl, tenantId, siteId)
+	_, err = c.NewJsonRequest("DELETE", apiUrl, rb)
+	return err
 }

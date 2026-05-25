@@ -30,8 +30,13 @@ resource "opsramp_resource" "resource2" {
   resource_type = "Linux"
 }
 
+resource "opsramp_resource" "resource3" {
+  resource_name = "TestResource3"
+  resource_type = "Linux"
+}
+
 resource "opsramp_site" "vmware_site_valencia" {
-  parent    = opsramp_site.vmware_site_spain.id
+  parent_id = opsramp_site.vmware_site_spain.id
   name      = "Valencia Data Center"
   address   = "Av. del General Avilés, 35-37, Benicalap"
   country   = "Spain"
@@ -42,7 +47,7 @@ resource "opsramp_site" "vmware_site_valencia" {
 }
 
 resource "opsramp_site" "vmware_site_madrid" {
-  parent       = opsramp_site.vmware_site_spain.id
+  parent_id    = opsramp_site.vmware_site_spain.id
   name         = "Madrid Data Center"
   address      = "Calle Vicente Aleixandre, 1"
   country      = "Spain"
@@ -50,4 +55,18 @@ resource "opsramp_site" "vmware_site_madrid" {
   state        = "Madrid"
   city         = "Las Rozas de Madrid"
   search_query = format("uuid = \"%s\"", opsramp_resource.resource2.uuid)
+}
+
+resource "opsramp_site" "vmware_site_barcelona" {
+  parent_id    = opsramp_site.vmware_site_spain.id
+  name         = "Barcelona Data Center"
+  address      = "Carrer de Tànger, 66"
+  country      = "Spain"
+  zip          = "08018"
+  state        = "Barcelona"
+  city         = "Sant Martí"
+  search_query = format("uuid = \"%s\"", opsramp_resource.resource2.uuid)
+  resources = [
+    opsramp_resource.resource3.uuid
+  ]
 }

@@ -26,10 +26,10 @@ Manages an OpsRamp Site resource for grouping and organizing monitored resources
 - `client` (String) The client (tenant) UUID where this site should be created. If not specified, uses the provider's tenant.
 - `country` (String) The country where the site is located.
 - `description` (String) The description of the site.
-- `parent` (String) The parent site, if this site is nested under another.
+- `parent_id` (Number) The parent site ID, if this site is nested under another.
 - `phone_extension` (String) The phone extension for the site.
 - `phone_number` (String) The primary phone number for the site.
-- `primary_contact` (Attributes) The primary contact person for the site. (see [below for nested schema](#nestedatt--primary_contact))
+- `primary_contact_id` (String) The primary contact person for the site.
 - `resources` (Set of String) Set of resource IDs to assign to this site.
 - `search_query` (String) The search query to filter resources for this site.
 - `state` (String) The state or region where the site is located.
@@ -37,18 +37,8 @@ Manages an OpsRamp Site resource for grouping and organizing monitored resources
 
 ### Read-Only
 
-- `id` (String) The unique identifier of the site.
-
-<a id="nestedatt--primary_contact"></a>
-### Nested Schema for `primary_contact`
-
-Optional:
-
-- `email` (String) The email of the primary contact.
-- `first_name` (String) The first name of the primary contact.
-- `id` (String) The user ID of the primary contact.
-- `last_name` (String) The last name of the primary contact.
-- `login_name` (String) The login name of the primary contact.
+- `id` (Number) The numeric identifier of the site.
+- `uuid` (String) The unique identifier of the site.
 
 ## Example Usage
 ```terraform

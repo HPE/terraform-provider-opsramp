@@ -5,10 +5,11 @@ package client
 
 // Site represents a physical or logical site for grouping resources
 type Site struct {
-	Id             string         `json:"id,omitempty"`
+	Id             int64          `json:"id,omitempty"`
+	Uuid           string         `json:"uuid,omitempty"`
 	Name           string         `json:"name"`
 	Path           string         `json:"path"`
-	Parent         *SiteParent    `json:"parent,omitempty"`
+	Parent         *SiteParentRef `json:"parent,omitempty"`
 	Description    string         `json:"description"`
 	Address        string         `json:"address"`
 	State          string         `json:"state"`
@@ -22,17 +23,10 @@ type Site struct {
 	Resources      []SiteResource `json:"resources,omitempty"`
 }
 
-// SiteResource represents a resource reference attached to a site.
-type SiteResource struct {
-	Id string `json:"id,omitempty"`
-}
-
-// SiteParent represents a parent site reference
-type SiteParent struct {
-	Id          int64  `json:"id"`
-	Name        string `json:"name,omitempty"`
-	Address     string `json:"address,omitempty"`
-	Description string `json:"description,omitempty"`
+// SiteChild represents a site entry in a site's child list.
+type SiteChild struct {
+	Uuid string `json:"uuid"`
+	Name string `json:"name,omitempty"`
 }
 
 // SiteContact represents the primary contact for a site
@@ -49,30 +43,20 @@ type SiteFilter struct {
 	SearchQuery string `json:"searchQuery"`
 }
 
-// SiteResponse represents the API response for a site
-type SiteResponse struct {
-	Id             uint           `json:"id"`
-	Uuid           string         `json:"uuid"`
-	Name           string         `json:"name"`
-	Path           string         `json:"path,omitempty"`
-	Parent         *SiteParent    `json:"parent,omitempty"`
-	Description    string         `json:"description,omitempty"`
-	Address        string         `json:"address,omitempty"`
-	State          string         `json:"state,omitempty"`
-	City           string         `json:"city,omitempty"`
-	Country        string         `json:"country,omitempty"`
-	Zip            string         `json:"zip,omitempty"`
-	PrimaryContact *SiteContact   `json:"primaryContact,omitempty"`
-	PhoneNumber    string         `json:"phoneNumber,omitempty"`
-	PhoneExtension string         `json:"phoneExtension,omitempty"`
-	FilterCriteria *SiteFilter    `json:"filterCriteria,omitempty"`
-	Resources      []SiteResource `json:"resources,omitempty"`
+// SiteResource represents a resource reference attached to a site.
+type SiteResource struct {
+	Id string `json:"id,omitempty"`
 }
 
 // SiteMinimal represents minimal site info for listing
 type SiteMinimal struct {
-	Id          string `json:"id"`
+	Id          int64  `json:"id"`
+	Uuid        string `json:"uuid"`
 	Name        string `json:"name"`
 	Description string `json:"description,omitempty"`
 	Address     string `json:"address,omitempty"`
+}
+
+type SiteParentRef struct {
+	Id int64 `json:"id"`
 }
