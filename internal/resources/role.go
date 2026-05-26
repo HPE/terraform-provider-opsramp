@@ -217,7 +217,7 @@ func (r *RoleResource) Create(ctx context.Context, req resource.CreateRequest, r
 	}
 
 	scope := "MSP"
-	if !plan.Client.IsNull() && plan.Client.ValueString() != "" {
+	if r.apiClient.Scope != "MSP" || (!plan.Client.IsNull() && plan.Client.ValueString() != "") {
 		scope = "CLIENT"
 	}
 
@@ -431,7 +431,7 @@ func (r *RoleResource) Update(ctx context.Context, req resource.UpdateRequest, r
 	}
 
 	scope := "MSP"
-	if !plan.Client.IsNull() && plan.Client.ValueString() != "" {
+	if r.apiClient.Scope != "MSP" || (!plan.Client.IsNull() && plan.Client.ValueString() != "") {
 		scope = "CLIENT"
 	}
 

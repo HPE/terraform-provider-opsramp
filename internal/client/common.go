@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -123,6 +124,11 @@ func (c *OpsRampClient) NewJsonRequest(method string, apiUrl string, payload []b
 		// Make the Request
 		res, err := c.Client.Do(req)
 		if err != nil {
+			if attempt < maxRetries && shouldRetryNetworkError(err) {
+				delay := time.Duration(attempt+1) * time.Second
+				time.Sleep(delay)
+				continue
+			}
 			return nil, err
 		}
 
@@ -136,10 +142,9 @@ func (c *OpsRampClient) NewJsonRequest(method string, apiUrl string, payload []b
 			return body, nil
 		}
 
-		// Retries are needed in some cases where previous resources
-		// ex: parents, groups, etc.. are not fully ready and API returns 500 with code 0005.
-		// This is a workaround to mitigate that issue.
-		if attempt < maxRetries && shouldRetryOpsRampServerError(res.StatusCode, body) {
+		// Transport-focused retries only. Domain-level retry/reconciliation
+		// (e.g. create-then-500 ambiguous outcomes) must be handled by callers.
+		if attempt < maxRetries && shouldRetryStatusCode(res.StatusCode) {
 			delay := time.Duration(attempt+1) * time.Second
 			time.Sleep(delay)
 			continue
@@ -151,19 +156,29 @@ func (c *OpsRampClient) NewJsonRequest(method string, apiUrl string, payload []b
 	return nil, fmt.Errorf("request failed after retries")
 }
 
-func shouldRetryOpsRampServerError(statusCode int, body []byte) bool {
-	if statusCode != http.StatusInternalServerError {
+func shouldRetryNetworkError(err error) bool {
+	if err == nil {
 		return false
 	}
 
-	var apiError struct {
-		Code string `json:"code"`
+	var netErr net.Error
+	if errors.As(err, &netErr) {
+		return netErr.Timeout() || netErr.Temporary()
 	}
 
-	if err := json.Unmarshal(body, &apiError); err == nil {
-		return apiError.Code == "0005"
-	}
+	errText := strings.ToLower(err.Error())
+	return strings.Contains(errText, "timeout") || strings.Contains(errText, "tempor")
+}
 
-	// Fallback for non-standard error payloads.
-	return strings.Contains(string(body), `"code":"0005"`)
+func shouldRetryStatusCode(statusCode int) bool {
+	switch statusCode {
+	case http.StatusTooManyRequests,
+		http.StatusBadGateway,
+		http.StatusServiceUnavailable,
+		http.StatusInternalServerError,
+		http.StatusGatewayTimeout:
+		return true
+	default:
+		return false
+	}
 }

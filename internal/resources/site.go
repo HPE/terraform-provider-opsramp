@@ -48,14 +48,6 @@ type SiteModel struct {
 	Resources        types.Set    `tfsdk:"resources"`
 }
 
-var contactAttrTypes = map[string]attr.Type{
-	"id":         types.StringType,
-	"login_name": types.StringType,
-	"first_name": types.StringType,
-	"last_name":  types.StringType,
-	"email":      types.StringType,
-}
-
 func NewSite() resource.Resource {
 	return &SiteResource{}
 }
