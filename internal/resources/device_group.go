@@ -217,22 +217,20 @@ func (r *DeviceGroupResource) Create(ctx context.Context, req resource.CreateReq
 
 	mapDeviceGroupResponseToModel(newDeviceGroup, &plan)
 
+	// Unset resources is equivalent to []: always reconcile.
+
 	resource_ids := []string{}
 	if !plan.Resources.IsNull() && !plan.Resources.IsUnknown() && len(plan.Resources.Elements()) > 0 {
 		resource_ids = setToStringSlice(plan.Resources)
-	}
 
-	// Add child resources if specified
-	if err := r.apiClient.AddDeviceGroupChilds(tenantId, newDeviceGroup.Id, resource_ids); err != nil {
-		resp.Diagnostics.AddError("Error adding resources to device group", err.Error())
-		return
+		// Add child resources if specified - don't fail the entire creation if this part fails, but do report it in diagnostics.
+		if err := r.apiClient.AddDeviceGroupChilds(tenantId, newDeviceGroup.Id, resource_ids); err != nil {
+			resp.Diagnostics.AddError("Error adding resources to device group", err.Error())
+		}
 	}
 
 	plan.Resources, diags = r.readDeviceGroupResources(ctx, tenantId, newDeviceGroup.Id)
 	resp.Diagnostics.Append(diags...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
 
 	// Save new state back to Terraform
 	diags = resp.State.Set(ctx, &plan)
@@ -267,6 +265,7 @@ func (r *DeviceGroupResource) Read(ctx context.Context, req resource.ReadRequest
 
 	resources, diags := r.readDeviceGroupResources(ctx, tenantId, backendDeviceGroup.Id)
 	resp.Diagnostics.Append(diags...)
+
 	if resp.Diagnostics.HasError() {
 		return
 	}

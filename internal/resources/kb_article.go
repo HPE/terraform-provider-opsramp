@@ -88,7 +88,7 @@ func (r *KBArticleResource) Schema(_ context.Context, _ resource.SchemaRequest, 
 			},
 			"state": schema.StringAttribute{
 				Computed:            true,
-				MarkdownDescription: "The publication status of the article. Always `PUBLISHED`.",
+				MarkdownDescription: "The publication status of the article. (`PUBLISHED`, `TRASH`).",
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.UseStateForUnknown(),
 				},
