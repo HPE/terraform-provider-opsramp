@@ -159,6 +159,29 @@ go build -o terraform-provider-opsramp .
 go test -v ./...
 ```
 
+### Run Acceptance Tests
+
+Set required provider authentication variables (or define them in a repository-root `.env` file):
+
+```bash
+export OPSRAMP_CLIENT_ID="your-client-id"
+export OPSRAMP_CLIENT_SECRET="your-client-secret"
+export OPSRAMP_TENANT="your-tenant-id"
+export OPSRAMP_ENDPOINT="your-api-endpoint.opsramp.com"
+```
+
+Then run acceptance tests:
+
+```bash
+make testacc
+```
+
+Optional scoped run examples:
+
+```bash
+make testacc TESTACC_PATH=./internal/resources TESTACC_RUN=TestAccDeviceGroupResource
+```
+
 ### Install Locally
 
 ```bash
