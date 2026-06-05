@@ -28,7 +28,7 @@ resource "opsramp_integration" "custom_bidirectional" {
         entity_type = "INCIDENT"
         third_party_attribute = "description"
         opsramp_attribute = "incident.impact"
-        attribute_values = {"JAJA": "TEST","JAJA2": "TEST2"}
+        attribute_values = {"attr1": "value1","attr2": "value2"}
       }
     ]
 
@@ -49,7 +49,44 @@ resource "opsramp_integration" "custom_bidirectional" {
     additional_properties = {
       custom_key = "custom_value"
     }
+
+    
+    map_attributes = [
+      {
+        entity_type = "INCIDENT"
+        third_party_attribute = "priority.name"
+        opsramp_attribute = "incident.priority.name"
+        attribute_values = {"Very Low": "vl","Low": "l"}
+      }
+    ]
   }
+}
+
+resource "opsramp_integration_event" "custom_event" {
+  integration_id = opsramp_integration.custom_bidirectional.id
+  name = "Custom Event"
+  entity = "DEFAULT_RESOURCE"
+  event_type = "CREATE"
+
+  resource_group_allowed = false
+  use_base_notifier = true
+
+  endpoint_uri = "https://external-system.example.com/event-webhook"
+  third_party_event_type = "POST"
+  event_payload = "test $default_resource.aliasName"
+
+  headers = {
+    "Content-Type" = "application/json"
+    "Accept" = "application/json"
+  }
+
+  response_headers = {
+    "Status Message" = "$status",
+    "extTicketURL" = "$url",
+    "extTicketId" = "$id",
+    "Error Message" = "$error",
+  }
+
 }
 
 # Pre-configured integration (e.g. NewRelic) - auth is auto-provisioned on install
@@ -63,7 +100,10 @@ resource "opsramp_integration" "newrelic" {
         {
             third_party_attribute = "device.ip"
 	        opsramp_attribute = "alert.alertTime"
-	        	        attribute_values = {"JAJA": "TEST","JAJA2": "TEST2"}
+            attribute_values = {
+                "attr1": "value1",
+                "attr2": "value2"
+            }
 
 	        default_parsing_value = "test"
         	parsing_operators = [
@@ -75,7 +115,8 @@ resource "opsramp_integration" "newrelic" {
         }
     ]
 
-    enable_drop_alerts = false
+    enable_drop_alerts = true
+    process_definition_ids = ["PROCESS_843e00d7-24d0-4bf1-a705-9d955930f09e"]
   }
 }
 
@@ -99,7 +140,6 @@ resource "opsramp_integration" "client_event_integration" {
           {
               third_party_attribute = "alert_time"
               opsramp_attribute = "alert.alertTime"
-              default_parsing_value = ""
           },
           {
               third_party_attribute = "alert_id"
@@ -110,10 +150,10 @@ resource "opsramp_integration" "client_event_integration" {
                       end_word = " is the alert ID"
                   }
               ]
-              default_parsing_value = "default_component"
+              default_parsing_value = "default_ext_alert_id"
           },
           {
-              third_party_attribute = "alert_component"
+              third_party_attribute = "alert_component2"
               opsramp_attribute = "alert.component"
               parsing_operators = [
                   {
@@ -133,7 +173,7 @@ resource "opsramp_integration" "client_event_integration" {
                       end_word = ","
                   }
               ]
-              default_parsing_value = "default_component"
+              default_parsing_value = "default_ip_address"
           },
           {
               third_party_attribute = "alert_device_name"
@@ -144,7 +184,7 @@ resource "opsramp_integration" "client_event_integration" {
                       regex_str = "Resource Name: (.+)"
                   }
               ]
-              default_parsing_value = "default_component"
+              default_parsing_value = "default_device_name"
           }
         ]
 
@@ -160,3 +200,22 @@ output "client_event_integration_token" {
     value = opsramp_integration.client_event_integration.inbound.token
     sensitive = true
 }
+
+# data "opsramp_available_integration" "kubernetes_2_0" {
+#   id = "Kubernetes-2.0"
+# }
+
+# resource "opsramp_integration_app" "kubernetes_2_0_integration_app" {
+#   application  = data.opsramp_available_integration.kubernetes_2_0.id
+#   version = "2.3.0"
+#   bypass_resource_reconciliation = true
+# }
+
+# resource "opsramp_integration_config" "kubernetes_2_0_integration_config" {
+#   integration_id = opsramp_integration.kubernetes_2_0_integration.id
+  
+#   name = "test"
+#   config = jsonencode({"Etcd":true,"coreDNS":true,"KubeProxy":true,"enableLog":false,"enableEBPF":false,"kubeEvents":true,"enableTrace":false,"KubeletStats":true,"KubeAPIServer":true,"KubeScheduler":true,"ebpfFeatureFlag":false,"KubeClusterReceiver":true,"KubeControllerManager":true,"clientLevelLogPermission":false,"clientLevelTracePermission":false,"replicaCount":3,"DistributionType":"MICROK8S","eBPFContainerEngine":"cri-o"})
+#   all_resources = false
+#   schedule = true
+# }

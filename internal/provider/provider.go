@@ -138,6 +138,7 @@ func (p *OpsRampProvider) Resources(ctx context.Context) []func() resource.Resou
 		resources.NewUserGroup,
 		resources.NewCustomIntegration,
 		resources.NewIntegration,
+		resources.NewIntegrationEvent,
 		resources.NewScript,
 		resources.NewScriptCategory,
 		resources.NewKBCategory,
