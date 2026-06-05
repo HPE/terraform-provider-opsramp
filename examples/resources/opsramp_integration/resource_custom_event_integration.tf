@@ -1,5 +1,5 @@
-data "opsramp_custom_event_alert_source" "example" {
-  name      = "Alien Vault"
+data "opsramp_custom_event_alert_source" "custom_source" {
+  name      = "Custom"
 }
 
 resource "opsramp_integration" "client_event_integration" {
@@ -17,7 +17,6 @@ resource "opsramp_integration" "client_event_integration" {
           {
               third_party_attribute = "alert_time"
               opsramp_attribute = "alert.alertTime"
-              default_parsing_value = ""
           },
           {
               third_party_attribute = "alert_id"
@@ -28,10 +27,10 @@ resource "opsramp_integration" "client_event_integration" {
                       end_word = " is the alert ID"
                   }
               ]
-              default_parsing_value = "default_component"
+              default_parsing_value = "default_ext_alert_id"
           },
           {
-              third_party_attribute = "alert_component"
+              third_party_attribute = "alert_component2"
               opsramp_attribute = "alert.component"
               parsing_operators = [
                   {
@@ -51,7 +50,7 @@ resource "opsramp_integration" "client_event_integration" {
                       end_word = ","
                   }
               ]
-              default_parsing_value = "default_component"
+              default_parsing_value = "default_ip_address"
           },
           {
               third_party_attribute = "alert_device_name"
@@ -62,7 +61,7 @@ resource "opsramp_integration" "client_event_integration" {
                       regex_str = "Resource Name: (.+)"
                   }
               ]
-              default_parsing_value = "default_component"
+              default_parsing_value = "default_device_name"
           }
         ]
 

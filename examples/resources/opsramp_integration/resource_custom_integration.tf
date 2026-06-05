@@ -12,7 +12,7 @@ resource "opsramp_integration" "custom_bidirectional" {
         entity_type = "INCIDENT"
         third_party_attribute = "description"
         opsramp_attribute = "incident.impact"
-        attribute_values = {"JAJA": "TEST","JAJA2": "TEST2"}
+        attribute_values = {"attr1": "value1","attr2": "value2"}
       }
     ]
 
@@ -33,5 +33,14 @@ resource "opsramp_integration" "custom_bidirectional" {
     additional_properties = {
       custom_key = "custom_value"
     }
+
+    map_attributes = [
+      {
+        entity_type = "INCIDENT"
+        third_party_attribute = "priority.name"
+        opsramp_attribute = "incident.priority.name"
+        attribute_values = {"Very Low": "vl","Low": "l"}
+      }
+    ]
   }
 }

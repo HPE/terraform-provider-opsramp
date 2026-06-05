@@ -8,9 +8,11 @@ package client
 // InstallIntegrationRequest represents the request body to install an integration.
 // Fields are used selectively depending on the application type.
 type InstallIntegrationRequest struct {
-	DisplayName   string `json:"displayName,omitempty"`
-	Description   string `json:"description,omitempty"`
-	Category      string `json:"category,omitempty"`
+	DisplayName               string `json:"displayName,omitempty"`
+	Description               string `json:"description,omitempty"`
+	Category                  string `json:"category,omitempty"`
+	MultiAppsDiscoveryEnabled bool   `json:"multiAppsDiscoveryEnabled,omitempty"`
+
 	IPAddress     string `json:"ipAddress,omitempty"`
 	CredentialSet string `json:"credentialSet,omitempty"`
 
@@ -18,10 +20,9 @@ type InstallIntegrationRequest struct {
 	AlertSource *AlertSource `json:"alertSource,omitempty"`
 
 	// For configuration-based integrations (VMWARE, etc.)
-	ProviderProps             map[string]any     `json:"providerProps,omitempty"`
-	ConfigDetails             map[string]any     `json:"configDetails,omitempty"`
-	MultiAppsDiscoveryEnabled bool               `json:"multiAppsDiscoveryEnabled,omitempty"`
-	DiscoveryProfiles         []DiscoveryProfile `json:"discoveryProfiles,omitempty"`
+	ProviderProps     map[string]any     `json:"providerProps,omitempty"`
+	ConfigDetails     map[string]any     `json:"configDetails,omitempty"`
+	DiscoveryProfiles []DiscoveryProfile `json:"discoveryProfiles,omitempty"`
 }
 
 // AlertSource identifies the third-party alert source for event integrations
@@ -80,6 +81,7 @@ type IntegrationResponse struct {
 	InstalledBy   string                    `json:"installedBy,omitempty"`
 	InstalledTime string                    `json:"installedTime,omitempty"`
 	Status        string                    `json:"status,omitempty"`
+	State         string                    `json:"state,omitempty"`
 	IPAddress     string                    `json:"ipAddress,omitempty"`
 	CredentialSet string                    `json:"credentialSet,omitempty"`
 	ConfigFiles   []ConfigFile              `json:"configFiles,omitempty"`
@@ -139,11 +141,12 @@ type InboundAuthResponse struct {
 
 // MappingAttributesRequest represents the request to configure attribute mapping
 type MappingAttributesRequest struct {
-	InboundConfig *MappingInboundConfig `json:"inboundConfig,omitempty"`
+	InboundConfig  *MappingConfig `json:"inboundConfig,omitempty"`
+	OutboundConfig *MappingConfig `json:"outboundConfig,omitempty"`
 }
 
-// MappingInboundConfig wraps the list of attribute mappings
-type MappingInboundConfig struct {
+// MappingConfig wraps the list of attribute mappings (reused for inbound & outbound)
+type MappingConfig struct {
 	MapAttributes []MapAttribute `json:"mapAttributes,omitempty"`
 }
 
@@ -209,8 +212,8 @@ type DeleteIntegrationRequest struct {
 	UninstallReason string `json:"uninstallReason,omitempty"`
 }
 
-// InboundEntityProperty represents an available property for inbound attribute mapping
-type InboundEntityProperty struct {
+// EntityProperty represents an available property for inbound/outbound attribute mapping
+type EntityProperty struct {
 	Entity       string `json:"entity"`
 	Property     string `json:"property"`
 	PropertyType string `json:"propertyType"`
@@ -222,4 +225,104 @@ type InboundEntityProperty struct {
 	Mapped       bool   `json:"mapped"`
 	Mandatory    bool   `json:"mandatory"`
 	Parsable     bool   `json:"parsable"`
+}
+
+// AvailableIntegration represents a single available integration from the search endpoint.
+type AvailableIntegration struct {
+	ID                 string                   `json:"id"`
+	Name               string                   `json:"name"`
+	DisplayName        string                   `json:"displayName"`
+	Category           string                   `json:"category"`
+	SubCategory        string                   `json:"subCategory,omitempty"`
+	SubCategoryJson    *AvailableIntegrationSub `json:"subCategoryJson,omitempty"`
+	SupportedAuthTypes string                   `json:"supportedAuthTypes,omitempty"`
+	AccessLevel        string                   `json:"accessLevel,omitempty"`
+}
+
+// AvailableIntegrationSub represents the sub-category detail.
+type AvailableIntegrationSub struct {
+	Name        string `json:"name"`
+	DisplayName string `json:"displayName"`
+}
+
+// AvailableIntegrationSearchResponse represents the paginated response from available integrations search.
+type AvailableIntegrationSearchResponse struct {
+	Results      []AvailableIntegration `json:"results"`
+	TotalResults int                    `json:"totalResults"`
+	PageNo       int                    `json:"pageNo"`
+	PageSize     int                    `json:"pageSize"`
+	TotalPages   int                    `json:"totalPages"`
+	NextPage     bool                   `json:"nextPage"`
+}
+
+// InstalledMappingResponse is the paginated response from GET installedIntgMappings.
+type InstalledMappingResponse struct {
+	Results  []InstalledMappingResult `json:"results"`
+	NextPage bool                     `json:"nextPage"`
+}
+
+// InstalledMappingResult represents a single installed mapping entry.
+type InstalledMappingResult struct {
+	Entity               string                    `json:"entity"`
+	TenantEntity         string                    `json:"tenantEntity"`
+	Property             string                    `json:"property"`
+	TenantProperty       string                    `json:"tenantProperty"`
+	PropertyValue        string                    `json:"propertyValue"`
+	PropertyDisplayValue string                    `json:"propertyDisplayValue"`
+	TenantPropertyValue  string                    `json:"tenantPropertyValue"`
+	ParsingProperty      *InstalledParsingProperty `json:"parsingProperty,omitempty"`
+	UniqueId             string                    `json:"uniqueId"`
+}
+
+// InstalledParsingProperty represents the parsing config returned in a mapping result.
+type InstalledParsingProperty struct {
+	DefaultValue  string               `json:"defaultValue"`
+	OprSet        []InstalledParsingOp `json:"oprset"`
+	ValueMappings []any                `json:"valueMappings"`
+}
+
+// InstalledParsingOp represents a single parsing operator in a mapping result.
+type InstalledParsingOp struct {
+	Operator  string `json:"operator"`
+	StartWord string `json:"startWord,omitempty"`
+	EndWord   string `json:"endWord,omitempty"`
+	RegexStr  string `json:"regexStr,omitempty"`
+}
+
+// IntegrationEventRequest is the body used to create or update an outbound integration event.
+type IntegrationEventRequest struct {
+	Name                   string           `json:"name"`
+	Entity                 string           `json:"entity"`
+	EventType              string           `json:"eventType"`
+	UseBaseNotifier        bool             `json:"useBaseNotifier"`
+	Notifier               *NotifierRequest `json:"notifier,omitempty"`
+	ThirdPartyEventType    string           `json:"thirdPartyEventType,omitempty"`
+	Headers                []KeyValuePair   `json:"headers,omitempty"`
+	EventPayload           string           `json:"eventPayload,omitempty"`
+	EndPointURI            string           `json:"endPointURI,omitempty"`
+	ResponseHeaders        []KeyValuePair   `json:"responseHeaders,omitempty"`
+	ResourceGroupAllowed   bool             `json:"resourceGroupAllowed,omitempty"`
+	CustomAttributeAllowed bool             `json:"customAttributeAllowed,omitempty"`
+	Active                 bool             `json:"active,omitempty"`
+}
+
+// IntegrationEventResponse is the API response for a created/fetched outbound integration event.
+type IntegrationEventResponse struct {
+	ID                     string           `json:"id"`
+	Name                   string           `json:"name"`
+	Entity                 string           `json:"entity"`
+	EventType              string           `json:"eventType"`
+	UseBaseNotifier        bool             `json:"useBaseNotifier"`
+	Notifier               *NotifierRequest `json:"notifier,omitempty"`
+	ThirdPartyEventType    string           `json:"thirdPartyEventType,omitempty"`
+	Headers                []KeyValuePair   `json:"headers,omitempty"`
+	EventPayload           string           `json:"eventPayload,omitempty"`
+	EndPointURI            string           `json:"endPointURI,omitempty"`
+	ResponseHeaders        []KeyValuePair   `json:"responseHeaders,omitempty"`
+	ResourceGroupAllowed   bool             `json:"resourceGroupAllowed"`
+	CustomAttributeAllowed bool             `json:"customAttributeAllowed"`
+	Active                 bool             `json:"active"`
+	EventLevel             string           `json:"eventLevel,omitempty"`
+	ModifiedTime           string           `json:"modifiedTime,omitempty"`
+	ModifiedBy             string           `json:"modifiedBy,omitempty"`
 }

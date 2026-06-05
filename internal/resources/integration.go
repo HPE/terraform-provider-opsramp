@@ -12,6 +12,7 @@ import (
 	"github.com/HPE/terraform-provider-opsramp/internal/client"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
+	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
@@ -34,13 +35,14 @@ type IntegrationResource struct {
 
 // IntegrationModel maps Terraform schema attributes to the provider model.
 type IntegrationModel struct {
-	Id          types.String `tfsdk:"id"`
-	DisplayName types.String `tfsdk:"display_name"`
-	Description types.String `tfsdk:"description"`
-	Application types.String `tfsdk:"application"`
-	Category    types.String `tfsdk:"category"`
-	Client      types.String `tfsdk:"client"`
-	Status      types.String `tfsdk:"status"`
+	Id                           types.String `tfsdk:"id"`
+	DisplayName                  types.String `tfsdk:"display_name"`
+	Description                  types.String `tfsdk:"description"`
+	Application                  types.String `tfsdk:"application"`
+	Category                     types.String `tfsdk:"category"`
+	Client                       types.String `tfsdk:"client"`
+	Status                       types.String `tfsdk:"status"`
+	BypassResourceReconciliation types.Bool   `tfsdk:"bypass_resource_reconciliation"`
 
 	// Alert source for event integrations (CUSTOM-EVENT)
 	AlertSourceID types.Int64 `tfsdk:"alert_source_id"`
@@ -66,7 +68,7 @@ type IntegrationInboundModel struct {
 	EnableDropAlerts types.Bool `tfsdk:"enable_drop_alerts"`
 
 	// Process definition assignments
-	ProcessDefinitionIds types.List `tfsdk:"process_definition_ids"`
+	ProcessDefinitionIds types.Set `tfsdk:"process_definition_ids"`
 
 	// Webhook handshake properties (JSON-encoded map)
 	WebhookHandshake types.String `tfsdk:"webhook_handshake"`
@@ -105,6 +107,9 @@ type IntegrationOutboundModel struct {
 	AccessTokenURL types.String `tfsdk:"access_token_url"`
 	GrantType      types.String `tfsdk:"grant_type"`
 	Scope          types.String `tfsdk:"scope"`
+
+	// Outbound attribute mappings (read from API, not set directly)
+	MapAttributes []IntegrationMapAttributes `tfsdk:"map_attributes"`
 }
 
 // NewIntegration creates a new instance of the resource.
@@ -169,6 +174,10 @@ func (r *IntegrationResource) Schema(_ context.Context, _ resource.SchemaRequest
 			"alert_source_id": schema.Int64Attribute{
 				Optional:            true,
 				MarkdownDescription: "The alert source ID for CUSTOM-EVENT integrations. Retrieve available IDs using the OpsRamp API: GET /api/v2/tenants/{tenantId}/cfg/alertSource/available/custIntg/CUSTOM-EVENT.",
+			},
+			"bypass_resource_reconciliation": schema.BoolAttribute{
+				Optional:            true,
+				MarkdownDescription: "Whether to bypass resource reconciliation for this integration.",
 			},
 			"inbound": schema.SingleNestedAttribute{
 				Optional:            true,
@@ -272,7 +281,7 @@ func (r *IntegrationResource) Schema(_ context.Context, _ resource.SchemaRequest
 						Default:             booldefault.StaticBool(false),
 						MarkdownDescription: "Whether to enable dropping of duplicate/unwanted alerts.",
 					},
-					"process_definition_ids": schema.ListAttribute{
+					"process_definition_ids": schema.SetAttribute{
 						Optional:            true,
 						MarkdownDescription: "List of process definition IDs to assign to this integration.",
 						ElementType:         types.StringType,
@@ -296,7 +305,10 @@ func (r *IntegrationResource) Schema(_ context.Context, _ resource.SchemaRequest
 						Optional:            true,
 						Computed:            true,
 						Default:             stringdefault.StaticString("REST_API"),
-						MarkdownDescription: "The notifier type (e.g. REST_API).",
+						MarkdownDescription: "The notifier type. Allowed values: `REST_API`, `SOAP_API`.",
+						Validators: []validator.String{
+							stringvalidator.OneOf("REST_API", "SOAP_API"),
+						},
 					},
 					"base_uri": schema.StringAttribute{
 						Required:            true,
@@ -304,28 +316,28 @@ func (r *IntegrationResource) Schema(_ context.Context, _ resource.SchemaRequest
 					},
 					"auth_type": schema.StringAttribute{
 						Required:            true,
-						MarkdownDescription: "The authentication type for outbound calls (NONE, OAUTH2, BASIC).",
+						MarkdownDescription: "The authentication type for outbound calls. Allowed values: `NONE`, `BASIC`, `OAUTH2`.",
 						Validators: []validator.String{
-							stringvalidator.OneOf("NONE", "OAUTH2", "BASIC"),
+							stringvalidator.OneOf("NONE", "BASIC", "OAUTH2"),
 						},
 					},
 					"username": schema.StringAttribute{
 						Optional:            true,
-						MarkdownDescription: "Username for BASIC or OAUTH2 authentication.",
+						MarkdownDescription: "Username for BASIC or OAUTH2 (PASSWORD/REFRESH_TOKEN grant) authentication.",
 					},
 					"password": schema.StringAttribute{
 						Optional:            true,
 						Sensitive:           true,
-						MarkdownDescription: "Password for BASIC or OAUTH2 authentication.",
+						MarkdownDescription: "Password for BASIC authentication.",
 					},
 					"api_key": schema.StringAttribute{
 						Optional:            true,
-						MarkdownDescription: "API key for OAUTH2 authentication.",
+						MarkdownDescription: "Client ID / API key for OAUTH2 authentication.",
 					},
 					"api_secret": schema.StringAttribute{
 						Optional:            true,
 						Sensitive:           true,
-						MarkdownDescription: "API secret for OAUTH2 authentication.",
+						MarkdownDescription: "Client secret / API secret for OAUTH2 authentication.",
 					},
 					"access_token_url": schema.StringAttribute{
 						Optional:            true,
@@ -333,11 +345,80 @@ func (r *IntegrationResource) Schema(_ context.Context, _ resource.SchemaRequest
 					},
 					"grant_type": schema.StringAttribute{
 						Optional:            true,
-						MarkdownDescription: "The OAuth2 grant type (e.g. PASSWORD).",
+						MarkdownDescription: "The OAuth2 grant type. Allowed values: `CLIENT_CREDENTIALS`, `PASSWORD`, `REFRESH_TOKEN`.",
+						Validators: []validator.String{
+							stringvalidator.OneOf("CLIENT_CREDENTIALS", "PASSWORD", "REFRESH_TOKEN"),
+						},
 					},
 					"scope": schema.StringAttribute{
 						Optional:            true,
 						MarkdownDescription: "The OAuth2 scope.",
+					},
+					"map_attributes": schema.ListNestedAttribute{
+						Optional:            true,
+						MarkdownDescription: "Attribute mapping rules for inbound data transformation.",
+						NestedObject: schema.NestedAttributeObject{
+							Attributes: map[string]schema.Attribute{
+								"opsramp_attribute": schema.StringAttribute{
+									Required:            true,
+									MarkdownDescription: "The OpsRamp attribute to map to (e.g. alert.alertTime, alert.component). Use the opsramp_integration_inbound_properties data source to look up valid values.",
+								},
+								"third_party_attribute": schema.StringAttribute{
+									Required:            true,
+									MarkdownDescription: "The third-party entity type name.",
+								},
+								"entity_type": schema.StringAttribute{
+									Optional:            true,
+									Computed:            true,
+									Default:             stringdefault.StaticString("ALERT"),
+									MarkdownDescription: "The OpsRamp entity type this mapping applies to (e.g. `ALERT`, `INCIDENT`, `SERVICEREQUEST`, `PROBLEM`, `CHANGE`, `TASK`). Defaults to `ALERT`.",
+								},
+								"attribute_values": schema.MapAttribute{
+									Optional:            true,
+									MarkdownDescription: "Specific attribute value mappings from third-party to OpsRamp values.",
+									ElementType:         types.StringType,
+								},
+								"default_parsing_value": schema.StringAttribute{
+									Optional:            true,
+									Computed:            true,
+									Default:             stringdefault.StaticString(""),
+									MarkdownDescription: "If parsing operators are defined, this value is used when no operators match. Required when parsing_operators is set.",
+								},
+								"parsing_operators": schema.ListNestedAttribute{
+									Optional:            true,
+									MarkdownDescription: "Attribute mapping rules for inbound data transformation.",
+									NestedObject: schema.NestedAttributeObject{
+										Attributes: map[string]schema.Attribute{
+											"operator": schema.StringAttribute{
+												Required:            true,
+												MarkdownDescription: "Operator type (e.g. `BEFORE`, `AFTER`, `BETWEEN`, `MATCHES`).",
+												Validators: []validator.String{
+													stringvalidator.OneOf("BEFORE", "AFTER", "BETWEEN", "MATCHES"),
+												},
+											},
+											"start_word": schema.StringAttribute{
+												Optional:            true,
+												Computed:            true,
+												MarkdownDescription: "Capture value after this word (for BEFORE/AFTER) or between this and end_word (for BETWEEN).",
+												Default:             stringdefault.StaticString(""),
+											},
+											"end_word": schema.StringAttribute{
+												Optional:            true,
+												Computed:            true,
+												MarkdownDescription: "Capture value before this word (for BEFORE/AFTER) or between this and end_word (for BETWEEN).",
+												Default:             stringdefault.StaticString(""),
+											},
+											"regex_str": schema.StringAttribute{
+												Optional:            true,
+												Computed:            true,
+												MarkdownDescription: "Capture value using a regular expresion.",
+												Default:             stringdefault.StaticString(""),
+											},
+										},
+									},
+								},
+							},
+						},
 					},
 				},
 			},
@@ -365,11 +446,12 @@ func (r *IntegrationResource) Create(ctx context.Context, req resource.CreateReq
 	tenantId := r.getTenantId(plan.Client)
 	application := plan.Application.ValueString()
 
-	// Build the install request
+	// Build the install request (v2 API)
 	installReq := client.InstallIntegrationRequest{
-		DisplayName: plan.DisplayName.ValueString(),
-		Description: plan.Description.ValueString(),
-		Category:    plan.Category.ValueString(),
+		DisplayName:               plan.DisplayName.ValueString(),
+		Description:               plan.Description.ValueString(),
+		Category:                  plan.Category.ValueString(),
+		MultiAppsDiscoveryEnabled: plan.BypassResourceReconciliation.ValueBool(),
 	}
 
 	// For CUSTOM-EVENT integrations, include alertSource
@@ -401,7 +483,7 @@ func (r *IntegrationResource) Create(ctx context.Context, req resource.CreateReq
 
 	// Configure inbound if specified
 	if plan.Inbound != nil {
-		if err := r.configureInbound(tenantId, installed.ID, plan.Inbound, installed); err != nil {
+		if err := r.configureInbound(tenantId, installed.ID, application, plan.Inbound, installed); err != nil {
 			resp.Diagnostics.AddError("Inbound Configuration Error", err.Error())
 			resp.State.Set(ctx, &plan)
 			return
@@ -432,8 +514,10 @@ func (r *IntegrationResource) Create(ctx context.Context, req resource.CreateReq
 	resp.Diagnostics.Append(diags...)
 }
 
-// configureInbound sets up the inbound configuration for an integration
-func (r *IntegrationResource) configureInbound(tenantId, integrationId string, inbound *IntegrationInboundModel, installed *client.IntegrationResponse) error {
+// configureInbound sets up the inbound configuration for an integration.
+// applicationName is the integration type (e.g. "CUSTOM", "CUSTOM-EVENT", "NEWRELIC").
+// installed may be nil (e.g. during Update) and is only used to seed token/webhook from the install response.
+func (r *IntegrationResource) configureInbound(tenantId, integrationId, applicationName string, inbound *IntegrationInboundModel, installed *client.IntegrationResponse) error {
 
 	if installed != nil && installed.InboundConfig != nil && installed.InboundConfig.Authentication != nil {
 		// Use values from install response (e.g. NEWRELIC auto-provisions auth)
@@ -449,7 +533,7 @@ func (r *IntegrationResource) configureInbound(tenantId, integrationId string, i
 	if inbound.AuthType.ValueString() != "" {
 		var selectedRole *client.RoleClientRef
 
-		if installed.Integration.Name == "CUSTOM-EVENT" || installed.Integration.Name == "CUSTOM" {
+		if applicationName == "CUSTOM-EVENT" || applicationName == "CUSTOM" {
 
 			// Retrieve Available Role
 			integrationAvailableRoles, err := r.apiClient.GetIntegrationAvailableRoles(tenantId, integrationId)
@@ -495,22 +579,35 @@ func (r *IntegrationResource) configureInbound(tenantId, integrationId string, i
 		inbound.WebhookURL = types.StringValue(authResp.WebhookURL)
 	}
 
-	// Set mapping attributes if specified
+	// Set mapping attributes if specified.
+	// Always delete existing mappings first so that removed entries are cleaned up,
+	// then POST the desired set. During create there are no existing mappings, so the
+	// delete step is a no-op.
+	existing, err := r.apiClient.GetInstalledMappingAttributes(tenantId, integrationId)
+	if err != nil {
+		return fmt.Errorf("failed to retrieve existing mapping attributes: %w", err)
+	}
+	for _, m := range existing {
+		if err := r.apiClient.DeleteMappingAttribute(tenantId, integrationId, m.UniqueId); err != nil {
+			return fmt.Errorf("failed to delete mapping attribute '%s': %w", m.UniqueId, err)
+		}
+	}
+
 	if len(inbound.MapAttributes) > 0 {
-		mapAttrs, err := r.buildMappingAttributes(tenantId, integrationId, inbound.MapAttributes)
+		mapAttrs, err := r.buildMappingAttributes(tenantId, integrationId, inbound.MapAttributes, false)
 		if err != nil {
 			return fmt.Errorf("failed to build mapping attributes: %w", err)
 		}
 
 		if err := r.apiClient.SetMappingAttributes(tenantId, integrationId, mapAttrs); err != nil {
-			return fmt.Errorf("failed to set mapping attributes: %w", err)
+			return fmt.Errorf("failed to set inbound mapping attributes: %w", err)
 		}
 	}
 
 	// Set enable drop alerts
-	if !inbound.EnableDropAlerts.IsNull() && inbound.EnableDropAlerts.ValueBool() {
-		if err := r.apiClient.SetEnableDropAlerts(tenantId, integrationId, true); err != nil {
-			return fmt.Errorf("failed to enable drop alerts: %w", err)
+	if !inbound.EnableDropAlerts.IsNull() {
+		if err := r.apiClient.SetEnableDropAlerts(tenantId, integrationId, inbound.EnableDropAlerts.ValueBool()); err != nil {
+			return fmt.Errorf("failed to set drop alerts: %w", err)
 		}
 	}
 
@@ -549,7 +646,7 @@ func (r *IntegrationResource) configureInbound(tenantId, integrationId string, i
 	return nil
 }
 
-// configureOutbound sets up the outbound notifier configuration
+// configureOutbound sets up the outbound notifier configuration and any mapping attributes.
 func (r *IntegrationResource) configureOutbound(tenantId, integrationId string, outbound *IntegrationOutboundModel) error {
 	notifierReq := client.NotifierRequest{
 		Type:         outbound.Type.ValueString(),
@@ -584,22 +681,53 @@ func (r *IntegrationResource) configureOutbound(tenantId, integrationId string, 
 		return fmt.Errorf("failed to set notifier: %w", err)
 	}
 
+	// Reconcile outbound mapping attributes: delete all existing, then post desired set.
+	existing, err := r.apiClient.GetInstalledOutboundMappingAttributes(tenantId, integrationId)
+	if err != nil {
+		return fmt.Errorf("failed to retrieve existing outbound mapping attributes: %w", err)
+	}
+	for _, m := range existing {
+		if err := r.apiClient.DeleteOutboundMappingAttribute(tenantId, integrationId, m.UniqueId); err != nil {
+			return fmt.Errorf("failed to delete outbound mapping attribute '%s': %w", m.UniqueId, err)
+		}
+	}
+
+	if len(outbound.MapAttributes) > 0 {
+		mapAttrs, err := r.buildMappingAttributes(tenantId, integrationId, outbound.MapAttributes, true)
+		if err != nil {
+			return fmt.Errorf("failed to build outbound mapping attributes: %w", err)
+		}
+		if err := r.apiClient.SetMappingAttributes(tenantId, integrationId, mapAttrs); err != nil {
+			return fmt.Errorf("failed to set outbound mapping attributes: %w", err)
+		}
+	}
+
 	return nil
 }
 
 // buildMappingAttributes converts the Terraform model to the API request.
 // It fetches available properties from the API to resolve the display name for each opsramp_attribute.
-func (r *IntegrationResource) buildMappingAttributes(tenantId, integrationId string, models []IntegrationMapAttributes) (client.MappingAttributesRequest, error) {
+// Set outbound=true to wrap the result in OutboundConfig instead of InboundConfig.
+func (r *IntegrationResource) buildMappingAttributes(tenantId, integrationId string, models []IntegrationMapAttributes, outbound bool) (client.MappingAttributesRequest, error) {
 	// Cache of entityType -> (property identifier -> display name), fetched lazily per entity type
 	propertyCache := make(map[string]map[string]string)
 	getPropertyNames := func(entityType string) (map[string]string, error) {
 		if names, ok := propertyCache[entityType]; ok {
 			return names, nil
 		}
-		properties, err := r.apiClient.GetInboundEntityProperties(tenantId, integrationId, entityType)
+
+		var properties []client.EntityProperty
+		var err error
+		if outbound {
+			properties, err = r.apiClient.GetOutboundEntityProperties(tenantId, integrationId, entityType)
+		} else {
+			properties, err = r.apiClient.GetInboundEntityProperties(tenantId, integrationId, entityType)
+		}
+
 		if err != nil {
 			return nil, fmt.Errorf("failed to retrieve inbound properties for entity type '%s': %w", entityType, err)
 		}
+
 		names := make(map[string]string, len(properties))
 		for _, p := range properties {
 			names[p.Property] = p.Name
@@ -663,11 +791,75 @@ func (r *IntegrationResource) buildMappingAttributes(tenantId, integrationId str
 		attrs[i] = attr
 	}
 
-	return client.MappingAttributesRequest{
-		InboundConfig: &client.MappingInboundConfig{
-			MapAttributes: attrs,
-		},
-	}, nil
+	mapAttrs := &client.MappingConfig{MapAttributes: attrs}
+	if outbound {
+		return client.MappingAttributesRequest{OutboundConfig: mapAttrs}, nil
+	}
+	return client.MappingAttributesRequest{InboundConfig: mapAttrs}, nil
+}
+
+// installedMappingsToModel converts the API response for installed mappings into the Terraform model slice.
+// The API returns one row per attribute-value pair; we group them back into a single model entry per
+// (entityType, opsrampAttribute, thirdPartyAttribute) key and collect the attribute values.
+func (r *IntegrationResource) installedMappingsToModel(mappings []client.InstalledMappingResult) []IntegrationMapAttributes {
+	type key struct {
+		entity   string
+		property string
+		tpAttr   string
+	}
+
+	// Preserve insertion order using a slice of keys
+	order := []key{}
+	groups := map[key]*IntegrationMapAttributes{}
+
+	for _, m := range mappings {
+		k := key{entity: m.Entity, property: m.Property, tpAttr: m.TenantProperty}
+		if _, exists := groups[k]; !exists {
+			order = append(order, k)
+
+			model := &IntegrationMapAttributes{
+				EntityType:          types.StringValue(m.Entity),
+				OpsRampAttribute:    types.StringValue(m.Property),
+				ThirdPartyAttribute: types.StringValue(m.TenantProperty),
+				AttributeValues:     types.MapNull(types.StringType),
+			}
+
+			// Parsing property comes from the first row (same for all rows in the group)
+			if m.ParsingProperty != nil {
+				model.DefaultParsingValue = types.StringValue(m.ParsingProperty.DefaultValue)
+				for _, op := range m.ParsingProperty.OprSet {
+					model.ParsingOperators = append(model.ParsingOperators, IntegrationParsingOperators{
+						Operator:  op.Operator,
+						StartWord: op.StartWord,
+						EndWord:   op.EndWord,
+						RegexStr:  op.RegexStr,
+					})
+				}
+			} else {
+				model.DefaultParsingValue = types.StringValue("")
+			}
+
+			groups[k] = model
+		}
+
+		// Collect attribute values (propertyValue -> tenantPropertyValue)
+		if m.PropertyValue != "" {
+			elems := map[string]attr.Value{}
+			if !groups[k].AttributeValues.IsNull() {
+				for k2, v := range groups[k].AttributeValues.Elements() {
+					elems[k2] = v
+				}
+			}
+			elems[m.PropertyValue] = types.StringValue(m.TenantPropertyValue)
+			groups[k].AttributeValues = types.MapValueMust(types.StringType, elems)
+		}
+	}
+
+	result := make([]IntegrationMapAttributes, 0, len(order))
+	for _, k := range order {
+		result = append(result, *groups[k])
+	}
+	return result
 }
 
 // Read handles reading the resource state.
@@ -696,12 +888,17 @@ func (r *IntegrationResource) Read(ctx context.Context, req resource.ReadRequest
 
 	// Update non-sensitive state from API
 	state.DisplayName = types.StringValue(existing.DisplayName)
+	state.Description = types.StringValue(existing.Description)
 	if existing.AlertSource != nil {
 		state.AlertSourceID = types.Int64Value(int64(existing.AlertSource.ID))
 	}
 	state.Status = types.StringValue(existing.Status)
 	if existing.Category != "" {
 		state.Category = types.StringValue(existing.Category)
+	}
+
+	if existing.MultiAppsDiscoveryEnabled {
+		state.BypassResourceReconciliation = types.BoolValue(existing.MultiAppsDiscoveryEnabled)
 	}
 
 	// Preserve inbound sensitive values (token, webhook_url) from state
@@ -714,6 +911,26 @@ func (r *IntegrationResource) Read(ctx context.Context, req resource.ReadRequest
 		if auth.WebhookURL != "" {
 			state.Inbound.WebhookURL = types.StringValue(auth.WebhookURL)
 		}
+	}
+
+	// Refresh mapping attributes from the API when inbound is configured
+	if state.Inbound != nil {
+		mappings, err := r.apiClient.GetInstalledMappingAttributes(tenantId, state.Id.ValueString())
+		if err != nil {
+			resp.Diagnostics.AddError("Read Inbound Mapping Attributes Error", err.Error())
+			return
+		}
+		state.Inbound.MapAttributes = r.installedMappingsToModel(mappings)
+	}
+
+	// Refresh outbound mapping attributes from the API when outbound is configured
+	if state.Outbound != nil {
+		outMappings, err := r.apiClient.GetInstalledOutboundMappingAttributes(tenantId, state.Id.ValueString())
+		if err != nil {
+			resp.Diagnostics.AddError("Read Outbound Mapping Attributes Error", err.Error())
+			return
+		}
+		state.Outbound.MapAttributes = r.installedMappingsToModel(outMappings)
 	}
 
 	diags = resp.State.Set(ctx, &state)
@@ -742,13 +959,15 @@ func (r *IntegrationResource) Update(ctx context.Context, req resource.UpdateReq
 	// Update base integration fields (displayName, description) if changed
 	if plan.DisplayName.ValueString() != state.DisplayName.ValueString() ||
 		plan.Description.ValueString() != state.Description.ValueString() ||
-		plan.AlertSourceID.ValueInt64() != state.AlertSourceID.ValueInt64() {
+		plan.AlertSourceID.ValueInt64() != state.AlertSourceID.ValueInt64() ||
+		plan.BypassResourceReconciliation.ValueBool() != state.BypassResourceReconciliation.ValueBool() {
 		updateReq := client.InstallIntegrationRequest{
 			DisplayName: plan.DisplayName.ValueString(),
 			Description: plan.Description.ValueString(),
 			AlertSource: &client.AlertSource{
 				ID: int(plan.AlertSourceID.ValueInt64()),
 			},
+			MultiAppsDiscoveryEnabled: plan.BypassResourceReconciliation.ValueBool(),
 		}
 		_, err := r.apiClient.UpdateIntegration(tenantId, integrationId, updateReq)
 		if err != nil {
@@ -767,7 +986,7 @@ func (r *IntegrationResource) Update(ctx context.Context, req resource.UpdateReq
 
 	// Re-configure inbound if specified
 	if plan.Inbound != nil {
-		if err := r.configureInbound(tenantId, integrationId, plan.Inbound, nil); err != nil {
+		if err := r.configureInbound(tenantId, integrationId, plan.Application.ValueString(), plan.Inbound, nil); err != nil {
 			resp.Diagnostics.AddError("Inbound Configuration Error", err.Error())
 			return
 		}
@@ -795,27 +1014,36 @@ func (r *IntegrationResource) Update(ctx context.Context, req resource.UpdateReq
 		}
 	}
 
-	// Preserve computed values
+	// Preserve computed values from state when plan doesn't set them
 	plan.Id = state.Id
 	plan.Status = state.Status
+	if plan.DisplayName.IsUnknown() {
+		plan.DisplayName = state.DisplayName
+	}
+	if plan.Category.IsUnknown() {
+		plan.Category = state.Category
+	}
+	if plan.Description.IsUnknown() {
+		plan.Description = state.Description
+	}
 
 	diags = resp.State.Set(ctx, &plan)
 	resp.Diagnostics.Append(diags...)
 }
 
 // reconcileProcessDefinitions unassigns process definitions that were removed from the plan.
-func (r *IntegrationResource) reconcileProcessDefinitions(tenantId, integrationId string, oldList, newList types.List, resp *resource.UpdateResponse) {
+func (r *IntegrationResource) reconcileProcessDefinitions(tenantId, integrationId string, oldSet types.Set, newSet types.Set, resp *resource.UpdateResponse) {
 	// Build set of new IDs
 	newIds := make(map[string]bool)
-	if !newList.IsNull() && !newList.IsUnknown() {
-		for _, elem := range newList.Elements() {
+	if !newSet.IsNull() && !newSet.IsUnknown() {
+		for _, elem := range newSet.Elements() {
 			newIds[elem.(types.String).ValueString()] = true
 		}
 	}
 
 	// Unassign any IDs that were in old state but not in new plan
-	if !oldList.IsNull() && !oldList.IsUnknown() {
-		for _, elem := range oldList.Elements() {
+	if !oldSet.IsNull() && !oldSet.IsUnknown() {
+		for _, elem := range oldSet.Elements() {
 			processId := elem.(types.String).ValueString()
 			if !newIds[processId] {
 				if err := r.apiClient.AssignProcessDefinition(tenantId, integrationId, processId, false); err != nil {
@@ -925,13 +1153,9 @@ func (r *IntegrationResource) ModifyPlan(ctx context.Context, req resource.Modif
 
 	applicationWithDisplayName := []string{"CUSTOM", "CUSTOM-EVENT"}
 
+	// For CUSTOM/CUSTOM-EVENT, display_name must be provided.
 	if contains(applicationWithDisplayName, plan.Application.ValueString()) && plan.DisplayName.ValueString() == "" {
 		resp.Diagnostics.AddError("display_name is required for application types CUSTOM and CUSTOM-EVENT", "Please provide a display_name value.")
-		return
-	}
-
-	if !contains(applicationWithDisplayName, plan.Application.ValueString()) && plan.DisplayName.ValueString() != "" {
-		resp.Diagnostics.AddError("display_name cannot be set for application types other than CUSTOM and CUSTOM-EVENT", "Remove the display_name value or set application to CUSTOM or CUSTOM-EVENT.")
 		return
 	}
 
@@ -954,10 +1178,6 @@ func (r *IntegrationResource) ModifyPlan(ctx context.Context, req resource.Modif
 			return
 		}
 	} else {
-		if !plan.Category.IsNull() && plan.Category.ValueString() != "" {
-			resp.Diagnostics.AddError("category can only be set for application types CUSTOM or CUSTOM-EVENT", "Remove the category value or set application to CUSTOM or CUSTOM-EVENT.")
-			return
-		}
 		if plan.Inbound != nil && !plan.Inbound.RoleId.IsNull() && plan.Inbound.RoleId.ValueString() != "" {
 			resp.Diagnostics.AddError("role_id can only be set for application types CUSTOM or CUSTOM-EVENT", "Remove the inbound role_id value or set application to CUSTOM or CUSTOM-EVENT.")
 			return
