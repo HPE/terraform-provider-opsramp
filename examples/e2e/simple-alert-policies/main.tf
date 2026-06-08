@@ -74,7 +74,7 @@ resource "opsramp_first_response_policy" "seasonality_first_response_policy" {
 resource "opsramp_alert_prediction_policy" "default_alert_prediction_policy" {
   name = "Default Prediction Policy"
 
-  enabled_mode = "OBSERVED"
+  enabled_mode = "OFF"
   filter_query = ""
 
   seasonality_time_frame    = "7D"
