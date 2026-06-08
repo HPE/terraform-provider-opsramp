@@ -201,21 +201,43 @@ output "client_event_integration_token" {
     sensitive = true
 }
 
-# data "opsramp_available_integration" "kubernetes_2_0" {
-#   id = "Kubernetes-2.0"
-# }
+resource "opsramp_integration_app" "kubernetes_2_0_integration_app" {
+  application  = "Kubernetes-2.0"
+  version = "2.3.0"
+  bypass_resource_reconciliation = true
+}
 
-# resource "opsramp_integration_app" "kubernetes_2_0_integration_app" {
-#   application  = data.opsramp_available_integration.kubernetes_2_0.id
-#   version = "2.3.0"
-#   bypass_resource_reconciliation = true
-# }
-
-# resource "opsramp_integration_config" "kubernetes_2_0_integration_config" {
-#   integration_id = opsramp_integration.kubernetes_2_0_integration.id
+resource "opsramp_integration_config" "kubernetes_2_0_integration_config" {
+  integration_id = opsramp_integration_app.kubernetes_2_0_integration_app.id
   
-#   name = "test"
-#   config = jsonencode({"Etcd":true,"coreDNS":true,"KubeProxy":true,"enableLog":false,"enableEBPF":false,"kubeEvents":true,"enableTrace":false,"KubeletStats":true,"KubeAPIServer":true,"KubeScheduler":true,"ebpfFeatureFlag":false,"KubeClusterReceiver":true,"KubeControllerManager":true,"clientLevelLogPermission":false,"clientLevelTracePermission":false,"replicaCount":3,"DistributionType":"MICROK8S","eBPFContainerEngine":"cri-o"})
-#   all_resources = false
-#   schedule = true
-# }
+  name = "test"
+  config = jsonencode({"Etcd":true,"coreDNS":true,"KubeProxy":true,"enableLog":true,"enableEBPF":true,"kubeEvents":true,"enableTrace":true,"KubeletStats":true,"KubeAPIServer":true,"KubeScheduler":true,"ebpfFeatureFlag":false,"KubeClusterReceiver":true,"KubeControllerManager":true,"clientLevelLogPermission":false,"clientLevelTracePermission":false,"replicaCount":3,"DistributionType":"K8S","eBPFContainerEngine":"cri-o"})
+  all_resources = false
+}
+
+resource "opsramp_integration" "snmp_integration" {
+  application  = "SNMP"
+  display_name = "SNMP Integration"
+  profile_id = "7f087cbf-2ce5-4e01-b6e8-a9d9d2f81728"
+}
+
+resource "opsramp_integration_config" "snmp_integration_config" {
+  integration_id = opsramp_integration.snmp_integration.id
+  
+  name = "SNMP Config"
+  config = jsonencode({"nmapResult":true,"packetCount":"default","deviceType":"SNMP Network Device","networkDepth":"1","discoveryType":"Iprange","ipRange":"10.0.0.1","credentials":["NpjSqRafZPMnjbSYHzmFXmCr"],"cdp":true,"snmpEnabledDevice":true,"ospf":true})
+  schedule = {
+    pattern_type = "DAILY"
+    pattern = 3
+    start_time = "01"
+  }
+  all_resources = true
+}
+
+resource "opsramp_integration_config" "snmp_integration_config2" {
+  integration_id = opsramp_integration.snmp_integration.id
+  
+  name = "SNMP Config 2"
+  config = jsonencode({"nmapResult":true,"packetCount":"default","deviceType":"SNMP Network Device","networkDepth":"1","discoveryType":"Iprange","ipRange":"10.0.1.1","credentials":["NpjSqRafZPMnjbSYHzmFXmCr"],"cdp":true,"snmpEnabledDevice":true,"ospf":true})
+  all_resources = true
+}

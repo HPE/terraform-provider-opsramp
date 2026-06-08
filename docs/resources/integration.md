@@ -22,12 +22,14 @@ Manages an OpsRamp Integration. Supports event-based integrations (inbound), cus
 ### Optional
 
 - `alert_source_id` (Number) The alert source ID for CUSTOM-EVENT integrations. Retrieve available IDs using the OpsRamp API: GET /api/v2/tenants/{tenantId}/cfg/alertSource/available/custIntg/CUSTOM-EVENT.
+- `bypass_resource_reconciliation` (Boolean) Whether to bypass resource reconciliation for this integration.
 - `category` (String) The integration category. Applicable for `CUSTOM` and `CUSTOM-EVENT` application types. For `CUSTOM-EVENT`, this is automatically set to `Monitoring`. Allowed values: `Custom`, `Collaboration`, `Monitoring`, `SSO`, `Automation`, `ADAPTER_INTEGRATION`.
 - `client` (String) The unique ID of the client (sub-tenant) where the integration should be installed. If not provided, the integration is created at the provider tenant level.
 - `description` (String) A description of the integration.
 - `display_name` (String) The display name of the integration.
 - `inbound` (Attributes) Inbound integration configuration. Used for event-based integrations that receive data via webhook. (see [below for nested schema](#nestedatt--inbound))
 - `outbound` (Attributes) Outbound integration configuration. Used for integrations that push data to external systems. (see [below for nested schema](#nestedatt--outbound))
+- `profile_id` (String) The gateway/profile UUID to associate with this app installation.
 
 ### Read-Only
 
@@ -43,7 +45,7 @@ Optional:
 - `auth_type` (String) The authentication type for inbound data (`WEBHOOK`, `OAUTH2`).
 - `enable_drop_alerts` (Boolean) Whether to enable dropping of duplicate/unwanted alerts.
 - `map_attributes` (Attributes List) Attribute mapping rules for inbound data transformation. (see [below for nested schema](#nestedatt--inbound--map_attributes))
-- `process_definition_ids` (List of String) List of process definition IDs to assign to this integration.
+- `process_definition_ids` (Set of String) List of process definition IDs to assign to this integration.
 - `role_id` (String) The unique ID of the role to assign for inbound authentication. Must be available for the integration. If not specified, defaults to the first available role.
 - `webhook_handshake` (String) JSON-encoded webhook handshake properties. Set when auth_type is WEBHOOK to configure handshake parameters (e.g. `{"header_name":"value"}`).
 
@@ -88,24 +90,53 @@ Optional:
 
 Required:
 
-- `auth_type` (String) The authentication type for outbound calls (NONE, OAUTH2, BASIC).
+- `auth_type` (String) The authentication type for outbound calls. Allowed values: `NONE`, `BASIC`, `OAUTH2`.
 - `base_uri` (String) The base URI of the external system to send notifications to.
 
 Optional:
 
 - `access_token_url` (String) The token endpoint URL for OAUTH2 authentication.
-- `api_key` (String) API key for OAUTH2 authentication.
-- `api_secret` (String, Sensitive) API secret for OAUTH2 authentication.
-- `grant_type` (String) The OAuth2 grant type (e.g. PASSWORD).
-- `password` (String, Sensitive) Password for BASIC or OAUTH2 authentication.
+- `api_key` (String) Client ID / API key for OAUTH2 authentication.
+- `api_secret` (String, Sensitive) Client secret / API secret for OAUTH2 authentication.
+- `grant_type` (String) The OAuth2 grant type. Allowed values: `CLIENT_CREDENTIALS`, `PASSWORD`, `REFRESH_TOKEN`.
+- `map_attributes` (Attributes List) Attribute mapping rules for inbound data transformation. (see [below for nested schema](#nestedatt--outbound--map_attributes))
+- `password` (String, Sensitive) Password for BASIC authentication.
 - `scope` (String) The OAuth2 scope.
-- `type` (String) The notifier type (e.g. REST_API).
-- `username` (String) Username for BASIC or OAUTH2 authentication.
+- `type` (String) The notifier type. Allowed values: `REST_API`, `SOAP_API`.
+- `username` (String) Username for BASIC or OAUTH2 (PASSWORD/REFRESH_TOKEN grant) authentication.
+
+<a id="nestedatt--outbound--map_attributes"></a>
+### Nested Schema for `outbound.map_attributes`
+
+Required:
+
+- `opsramp_attribute` (String) The OpsRamp attribute to map to (e.g. alert.alertTime, alert.component). Use the opsramp_integration_inbound_properties data source to look up valid values.
+- `third_party_attribute` (String) The third-party entity type name.
+
+Optional:
+
+- `attribute_values` (Map of String) Specific attribute value mappings from third-party to OpsRamp values.
+- `default_parsing_value` (String) If parsing operators are defined, this value is used when no operators match. Required when parsing_operators is set.
+- `entity_type` (String) The OpsRamp entity type this mapping applies to (e.g. `ALERT`, `INCIDENT`, `SERVICEREQUEST`, `PROBLEM`, `CHANGE`, `TASK`). Defaults to `ALERT`.
+- `parsing_operators` (Attributes List) Attribute mapping rules for inbound data transformation. (see [below for nested schema](#nestedatt--outbound--map_attributes--parsing_operators))
+
+<a id="nestedatt--outbound--map_attributes--parsing_operators"></a>
+### Nested Schema for `outbound.map_attributes.parsing_operators`
+
+Required:
+
+- `operator` (String) Operator type (e.g. `BEFORE`, `AFTER`, `BETWEEN`, `MATCHES`).
+
+Optional:
+
+- `end_word` (String) Capture value before this word (for BEFORE/AFTER) or between this and end_word (for BETWEEN).
+- `regex_str` (String) Capture value using a regular expresion.
+- `start_word` (String) Capture value after this word (for BEFORE/AFTER) or between this and end_word (for BETWEEN).
 
 ## Example Usage
 ```terraform
-data "opsramp_custom_event_alert_source" "example" {
-  name      = "Alien Vault"
+data "opsramp_custom_event_alert_source" "custom_source" {
+  name      = "Custom"
 }
 
 resource "opsramp_integration" "client_event_integration" {
@@ -123,7 +154,6 @@ resource "opsramp_integration" "client_event_integration" {
           {
               third_party_attribute = "alert_time"
               opsramp_attribute = "alert.alertTime"
-              default_parsing_value = ""
           },
           {
               third_party_attribute = "alert_id"
@@ -134,10 +164,10 @@ resource "opsramp_integration" "client_event_integration" {
                       end_word = " is the alert ID"
                   }
               ]
-              default_parsing_value = "default_component"
+              default_parsing_value = "default_ext_alert_id"
           },
           {
-              third_party_attribute = "alert_component"
+              third_party_attribute = "alert_component2"
               opsramp_attribute = "alert.component"
               parsing_operators = [
                   {
@@ -157,7 +187,7 @@ resource "opsramp_integration" "client_event_integration" {
                       end_word = ","
                   }
               ]
-              default_parsing_value = "default_component"
+              default_parsing_value = "default_ip_address"
           },
           {
               third_party_attribute = "alert_device_name"
@@ -168,7 +198,7 @@ resource "opsramp_integration" "client_event_integration" {
                       regex_str = "Resource Name: (.+)"
                   }
               ]
-              default_parsing_value = "default_component"
+              default_parsing_value = "default_device_name"
           }
         ]
 
@@ -193,7 +223,7 @@ resource "opsramp_integration" "custom_bidirectional" {
         entity_type = "INCIDENT"
         third_party_attribute = "description"
         opsramp_attribute = "incident.impact"
-        attribute_values = {"JAJA": "TEST","JAJA2": "TEST2"}
+        attribute_values = {"attr1": "value1","attr2": "value2"}
       }
     ]
 
@@ -214,6 +244,15 @@ resource "opsramp_integration" "custom_bidirectional" {
     additional_properties = {
       custom_key = "custom_value"
     }
+
+    map_attributes = [
+      {
+        entity_type = "INCIDENT"
+        third_party_attribute = "priority.name"
+        opsramp_attribute = "incident.priority.name"
+        attribute_values = {"Very Low": "vl","Low": "l"}
+      }
+    ]
   }
 }
 ```
@@ -230,7 +269,10 @@ resource "opsramp_integration" "newrelic" {
         {
             third_party_attribute = "device.ip"
 	        opsramp_attribute = "alert.alertTime"
-	        	        attribute_values = {"JAJA": "TEST","JAJA2": "TEST2"}
+            attribute_values = {
+                "attr1": "value1",
+                "attr2": "value2"
+            }
 
 	        default_parsing_value = "test"
         	parsing_operators = [
@@ -242,7 +284,16 @@ resource "opsramp_integration" "newrelic" {
         }
     ]
 
-    enable_drop_alerts = false
+    enable_drop_alerts = true
+    process_definition_ids = ["PROCESS_843e00d7-24d0-4bf1-a705-9d955930f09e"]
   }
+}
+```
+
+```terraform
+resource "opsramp_integration" "snmp_integration" {
+  application  = "SNMP"
+  display_name = "SNMP Integration"
+  profile_id = "7f087cbf-2ce5-4e01-b6e8-a9d9d2f81728"
 }
 ```

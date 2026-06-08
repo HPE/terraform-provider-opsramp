@@ -23,6 +23,8 @@ type InstallIntegrationRequest struct {
 	ProviderProps     map[string]any     `json:"providerProps,omitempty"`
 	ConfigDetails     map[string]any     `json:"configDetails,omitempty"`
 	DiscoveryProfiles []DiscoveryProfile `json:"discoveryProfiles,omitempty"`
+
+	Profile *InstallV3Profile `json:"profile,omitempty"`
 }
 
 // AlertSource identifies the third-party alert source for event integrations
@@ -92,7 +94,7 @@ type IntegrationResponse struct {
 	ConfigDetails             map[string]any     `json:"configDetails,omitempty"`
 	MultiAppsDiscoveryEnabled bool               `json:"multiAppsDiscoveryEnabled,omitempty"`
 	DiscoveryProfiles         []DiscoveryProfile `json:"discoveryProfiles,omitempty"`
-	AdditionalProperties      map[string]string  `json:"additionalProperties,omitempty"`
+	AdditionalProperties      map[string]any     `json:"additionalProperties,omitempty"`
 }
 
 // IntegrationDetails describes the integration application metadata

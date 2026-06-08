@@ -52,6 +52,8 @@ type IntegrationModel struct {
 
 	// Outbound configuration
 	Outbound *IntegrationOutboundModel `tfsdk:"outbound"`
+
+	ProfileId types.String `tfsdk:"profile_id"`
 }
 
 // IntegrationInboundModel represents the inbound configuration block
@@ -422,6 +424,14 @@ func (r *IntegrationResource) Schema(_ context.Context, _ resource.SchemaRequest
 					},
 				},
 			},
+			"profile_id": schema.StringAttribute{
+				Optional:            true,
+				Computed:            true,
+				MarkdownDescription: "The gateway/profile UUID to associate with this app installation.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
+			},
 		},
 	}
 }
@@ -446,11 +456,19 @@ func (r *IntegrationResource) Create(ctx context.Context, req resource.CreateReq
 	tenantId := r.getTenantId(plan.Client)
 	application := plan.Application.ValueString()
 
+	var profile client.InstallV3Profile
+	if !plan.ProfileId.IsNull() && plan.ProfileId.ValueString() != "" {
+		profile = client.InstallV3Profile{UuId: plan.ProfileId.ValueString()}
+	} else {
+		profile = client.InstallV3Profile{UuId: ""}
+	}
+
 	// Build the install request (v2 API)
 	installReq := client.InstallIntegrationRequest{
 		DisplayName:               plan.DisplayName.ValueString(),
 		Description:               plan.Description.ValueString(),
 		Category:                  plan.Category.ValueString(),
+		Profile:                   &profile,
 		MultiAppsDiscoveryEnabled: plan.BypassResourceReconciliation.ValueBool(),
 	}
 
