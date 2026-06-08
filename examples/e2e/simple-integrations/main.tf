@@ -215,10 +215,15 @@ resource "opsramp_integration_config" "kubernetes_2_0_integration_config" {
   all_resources = false
 }
 
+resource "opsramp_management_profile" "test_profile" {
+  name = "Test Profile"
+  description = "Profile for testing integrations"
+}
+
 resource "opsramp_integration" "snmp_integration" {
   application  = "SNMP"
   display_name = "SNMP Integration"
-  profile_id = "7f087cbf-2ce5-4e01-b6e8-a9d9d2f81728"
+  profile_id = opsramp_management_profile.test_profile.uuid
 }
 
 resource "opsramp_integration_config" "snmp_integration_config" {
