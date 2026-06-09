@@ -34,6 +34,11 @@ A [Terraform](https://www.terraform.io/) provider to manage resources via the [O
 | ServiceDesk Category | `opsramp_servicedesk_category` | Ticket categories |
 | ServiceDesk Urgency | `opsramp_servicedesk_urgency` | Urgency levels |
 | ServiceDesk Business Impact | `opsramp_servicedesk_business_impact` | Business impact levels |
+| Integration | `opsramp_integration` | Traditional Integrations |
+| Integration App | `opsramp_integration_app` | SDK APP Integrations |
+| Integration Event | `opsramp_integration_event` | Integration Events |
+| Integration Config | `opsramp_integration_config` | Integration Configurations |
+| Management Profile | `opsramp_management_profile` | Management Profiles for the OpsRamp Gateway |
 
 ## Supported Data Sources
 
@@ -42,6 +47,7 @@ A [Terraform](https://www.terraform.io/) provider to manage resources via the [O
 | Resource Lookup | `opsramp_resource_lookup` | Query resources by OpsQL filter |
 | Tenant | `opsramp_tenant` | Current tenant information |
 | Role | `opsramp_role` | Look up a role by name |
+| Custom Event Alert Source | `custom_event_alert_source` | Available sources for Custom_Event integrations  |
 
 ## Installation
 
