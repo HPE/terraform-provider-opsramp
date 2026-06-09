@@ -12,6 +12,7 @@ type KBCategory struct {
 	Scope          string         `json:"scope,omitempty"`
 	Description    string         `json:"description,omitempty"`
 	ParentCategory *KBCategoryRef `json:"parentCategory,omitempty"`
+	State          string         `json:"state,omitempty"`
 }
 
 // KBCategoryRef is a minimal reference to a category (used in nested fields).

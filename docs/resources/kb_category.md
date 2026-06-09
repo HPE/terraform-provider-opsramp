@@ -28,6 +28,7 @@ Manages an OpsRamp Knowledge Base Category. Categories organise KB articles and 
 ### Read-Only
 
 - `id` (String) The string ID of the KB category, assigned by the API.
+- `state` (String) The state of the KB category (e.g., `ACTIVE`, `TRASH`).
 
 ## Example Usage
 ```terraform

@@ -31,7 +31,7 @@ Manages an OpsRamp Knowledge Base Article.
 ### Read-Only
 
 - `id` (String) The string ID of the KB article, assigned by the API.
-- `state` (String) The publication status of the article. Always `PUBLISHED`.
+- `state` (String) The publication status of the article. (`PUBLISHED`, `TRASH`).
 
 ## Example Usage
 ```terraform

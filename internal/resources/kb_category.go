@@ -35,6 +35,7 @@ type KBCategoryModel struct {
 	Name             types.String `tfsdk:"name"`
 	Description      types.String `tfsdk:"description"`
 	ParentCategoryId types.String `tfsdk:"parent_category_id"`
+	State            types.String `tfsdk:"state"`
 }
 
 // NewKBCategory creates a new instance of the resource.
@@ -84,6 +85,10 @@ func (r *KBCategoryResource) Schema(_ context.Context, _ resource.SchemaRequest,
 					stringplanmodifier.UseStateForUnknown(),
 				},
 			},
+			"state": schema.StringAttribute{
+				Computed:            true,
+				MarkdownDescription: "The state of the KB category (e.g., `ACTIVE`, `TRASH`).",
+			},
 		},
 	}
 }
@@ -117,6 +122,7 @@ func populateKBCategoryModel(model *KBCategoryModel, cat *client.KBCategory) {
 	model.Id = types.StringValue(cat.Id)
 	model.Name = types.StringValue(cat.Name)
 	model.Description = types.StringValue(cat.Description)
+	model.State = types.StringValue(cat.State)
 	if cat.ParentCategory != nil {
 		model.ParentCategoryId = types.StringValue(cat.ParentCategory.Id)
 	} else {

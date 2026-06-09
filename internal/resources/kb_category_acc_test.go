@@ -99,8 +99,8 @@ func testAccCheckKBCategoryDestroy(t *testing.T) resource.TestCheckFunc {
 			}
 
 			category, err := apiClient.GetKBCategory(tenantID, rs.Primary.ID)
-			if category != nil {
-				fmt.Errorf("KB category still exists: %s (%s), object %+v", rs.Primary.ID, rs.Primary.Attributes["name"], category)
+			if category != nil && category.State != "TRASH" {
+				return fmt.Errorf("KB category still exists: %s (%s), object %+v", rs.Primary.ID, rs.Primary.Attributes["name"], category)
 			}
 
 			if err != nil {
