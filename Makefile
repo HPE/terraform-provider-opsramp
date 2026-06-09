@@ -5,7 +5,7 @@
 
 # Version: single source of truth for the provider version.
 # Override from CLI: make build VERSION=0.2.0
-VERSION ?= 0.1.4
+VERSION ?= 0.1.5
 
 # Disable VCS stamping so builds work in repositories without git metadata available to Go.
 GOFLAGS += -buildvcs=false
@@ -17,22 +17,20 @@ REGISTRY = registry.terraform.io/HPE/opsramp
 BINARY = terraform-provider-opsramp
 TESTACC_RUN ?= TestAcc
 TESTACC_TIMEOUT ?= 45m
+TESTACC_PATH ?= ./internal/resources/...
 
 # Detect OS and architecture via Go so it works on both platforms
 GOOS   := $(shell go env GOOS)
 GOARCH := $(shell go env GOARCH)
 
-# Binary extension (.exe on Windows, empty on Linux/macOS)
 ifeq ($(GOOS),windows)
   PLUGIN_ARCH=windows_amd64
   EXE = .exe
   PLUGIN_BASE = $(APPDATA)/terraform.d/plugins
-  TESTACC_PATH ?= .\internal\resources
 else
   PLUGIN_ARCH=linux_amd64
   EXE =
   PLUGIN_BASE = $(HOME)/.terraform.d/plugins
-  TESTACC_PATH ?= ./internal/resources
 endif
 
 PLUGIN_DIR = $(PLUGIN_BASE)/$(REGISTRY)/$(VERSION)/$(GOOS)_$(GOARCH)
@@ -66,12 +64,9 @@ test:
 	go test -v ./...
 
 # Run acceptance tests only (requires TF_ACC=1 and optional API env vars)
-testacc:
-ifeq ($(GOOS),windows)
-	$$env:TF_ACC=1; go test -count=1 -v -run "$(TESTACC_RUN)" -timeout "$(TESTACC_TIMEOUT)" $(TESTACC_PATH)
-else
-	TF_ACC=1 go test -count=1 -v -run '$(TESTACC_RUN)' -timeout '$(TESTACC_TIMEOUT)' $(TESTACC_PATH)
-endif
+testacc: export TF_ACC = 1
+testacc: 
+	go test -count=1 -v -run "$(TESTACC_RUN)" -timeout "$(TESTACC_TIMEOUT)" $(TESTACC_PATH)	
 
 # Install project tooling used for provider docs generation.
 # Uses go install @latest so go.mod is never modified.
