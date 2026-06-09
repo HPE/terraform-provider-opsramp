@@ -19,7 +19,6 @@ type IntegrationEventRequest struct {
 	ResponseHeaders        []KeyValuePair   `json:"responseHeaders,omitempty"`
 	ResourceGroupAllowed   bool             `json:"resourceGroupAllowed,omitempty"`
 	CustomAttributeAllowed bool             `json:"customAttributeAllowed,omitempty"`
-	Active                 bool             `json:"active,omitempty"`
 }
 
 // IntegrationEventResponse is the API response for a created/fetched outbound integration event.

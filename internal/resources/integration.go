@@ -429,6 +429,11 @@ func (r *IntegrationResource) Schema(_ context.Context, _ resource.SchemaRequest
 				Computed:            true,
 				MarkdownDescription: "The gateway/profile UUID to associate with this app installation.",
 				PlanModifiers: []planmodifier.String{
+					// UseStateForUnknown must come before RequiresReplace so that a null
+					// value persisted from a previous apply is carried forward as-is
+					// rather than being re-marked as (known after apply) by the framework,
+					// which would incorrectly trigger a replacement on every plan.
+					stringplanmodifier.UseStateForUnknown(),
 					stringplanmodifier.RequiresReplace(),
 				},
 			},
@@ -494,6 +499,12 @@ func (r *IntegrationResource) Create(ctx context.Context, req resource.CreateReq
 	plan.DisplayName = types.StringValue(installed.DisplayName)
 	if installed.Category != "" {
 		plan.Category = types.StringValue(installed.Category)
+	}
+
+	// The v2 API does not return profile_id. Resolve it to a known value so that
+	// Terraform does not report 'unknown value after apply'.
+	if plan.ProfileId.IsUnknown() {
+		plan.ProfileId = types.StringNull()
 	}
 
 	diags = resp.State.Set(ctx, &plan)
@@ -820,6 +831,13 @@ func (r *IntegrationResource) buildMappingAttributes(tenantId, integrationId str
 // The API returns one row per attribute-value pair; we group them back into a single model entry per
 // (entityType, opsrampAttribute, thirdPartyAttribute) key and collect the attribute values.
 func (r *IntegrationResource) installedMappingsToModel(mappings []client.InstalledMappingResult) []IntegrationMapAttributes {
+	// Return nil (not an empty slice) so that an Optional list attribute whose
+	// config value is absent (null) produces no spurious diff in the next plan.
+	// Terraform distinguishes [] from null for Optional list attributes.
+	if len(mappings) == 0 {
+		return nil
+	}
+
 	type key struct {
 		entity   string
 		property string
@@ -913,6 +931,12 @@ func (r *IntegrationResource) Read(ctx context.Context, req resource.ReadRequest
 	state.Status = types.StringValue(existing.Status)
 	if existing.Category != "" {
 		state.Category = types.StringValue(existing.Category)
+	}
+
+	// The v2 API does not return profile_id. Ensure it stays as a known null
+	// (not unknown) so Terraform does not emit 'unknown value after apply'.
+	if state.ProfileId.IsUnknown() {
+		state.ProfileId = types.StringNull()
 	}
 
 	if existing.MultiAppsDiscoveryEnabled {

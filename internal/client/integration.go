@@ -417,6 +417,18 @@ func (c *OpsRampClient) UpdateIntegrationEvent(tenantId string, integrationId st
 	return &resp, nil
 }
 
+// SetIntegrationEventActive activates or deactivates an outbound integration event.
+// The API endpoint is POST .../event/{eventId}/activate or .../event/{eventId}/deactivate.
+func (c *OpsRampClient) SetIntegrationEventActive(tenantId, integrationId, eventId string, active bool) error {
+	action := "activate"
+	if !active {
+		action = "deactivate"
+	}
+	apiUrl := fmt.Sprintf("%s/api/v2/tenants/%s/integrations/installed/%s/event/%s/%s", c.BaseUrl, tenantId, integrationId, eventId, action)
+	_, err := c.NewJsonRequest("POST", apiUrl, nil)
+	return err
+}
+
 // DeleteIntegrationEvent deletes an outbound event.
 func (c *OpsRampClient) DeleteIntegrationEvent(tenantId string, integrationId string, eventId string) error {
 	apiUrl := fmt.Sprintf("%s/api/v2/tenants/%s/integrations/installed/%s/event/%s", c.BaseUrl, tenantId, integrationId, eventId)

@@ -269,7 +269,19 @@ func (r *IntegrationEventResource) Create(ctx context.Context, req resource.Crea
 		return
 	}
 
+	// Capture desired active state before responseToModel overwrites it with the
+	// create API response (which does not reflect the activate/deactivate action).
+	desiredActive := plan.Active.ValueBool()
+
 	r.responseToModel(created, &plan)
+
+	// Set active/inactive state via the dedicated activate/deactivate endpoint.
+	if err := r.apiClient.SetIntegrationEventActive(tenantId, plan.IntegrationId.ValueString(), created.ID, desiredActive); err != nil {
+		resp.Diagnostics.AddError("Event Activate Error", fmt.Sprintf("Could not set active state for event %s: %s", created.ID, err.Error()))
+		return
+	}
+	// Restore the value we actually applied – the create response predates the action.
+	plan.Active = types.BoolValue(desiredActive)
 
 	diags = resp.State.Set(ctx, &plan)
 	resp.Diagnostics.Append(diags...)
@@ -326,6 +338,10 @@ func (r *IntegrationEventResource) Update(ctx context.Context, req resource.Upda
 
 	tenantId := r.getTenantId(plan.Client)
 
+	// Capture desired active state before responseToModel overwrites it with the
+	// update API response (which does not reflect the activate/deactivate action).
+	desiredActive := plan.Active.ValueBool()
+
 	eventReq := r.modelToRequest(plan)
 
 	updated, err := r.apiClient.UpdateIntegrationEvent(tenantId, state.IntegrationId.ValueString(), state.Id.ValueString(), eventReq)
@@ -334,8 +350,18 @@ func (r *IntegrationEventResource) Update(ctx context.Context, req resource.Upda
 		return
 	}
 
+	// If active state changed, call the dedicated activate/deactivate endpoint.
+	if desiredActive != state.Active.ValueBool() {
+		if err := r.apiClient.SetIntegrationEventActive(tenantId, state.IntegrationId.ValueString(), state.Id.ValueString(), desiredActive); err != nil {
+			resp.Diagnostics.AddError("Event Activate Error", fmt.Sprintf("Could not set active state for event %s: %s", state.Id.ValueString(), err.Error()))
+			return
+		}
+	}
+
 	plan.Id = state.Id
 	r.responseToModel(updated, &plan)
+	// Restore the value we actually applied – the update response predates the action.
+	plan.Active = types.BoolValue(desiredActive)
 
 	diags = resp.State.Set(ctx, &plan)
 	resp.Diagnostics.Append(diags...)
@@ -403,7 +429,6 @@ func (r *IntegrationEventResource) modelToRequest(plan IntegrationEventModel) cl
 		EndPointURI:            plan.EndPointURI.ValueString(),
 		ResourceGroupAllowed:   plan.ResourceGroupAllowed.ValueBool(),
 		CustomAttributeAllowed: plan.CustomAttributeAllowed.ValueBool(),
-		Active:                 plan.Active.ValueBool(),
 	}
 
 	if plan.Notifier != nil && !plan.UseBaseNotifier.ValueBool() {
