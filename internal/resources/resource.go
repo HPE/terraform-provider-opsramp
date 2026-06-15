@@ -346,7 +346,7 @@ func (r *Resource) ModifyPlan(ctx context.Context, req resource.ModifyPlanReques
 		return
 	}
 
-	hasClientOverride := !plan.Client.IsNull() && !plan.Client.IsUnknown() && strings.TrimSpace(plan.Client.ValueString()) != ""
+	hasClientOverride := !plan.Client.IsNull() && (plan.Client.IsUnknown() || strings.TrimSpace(plan.Client.ValueString()) != "")
 	if strings.ToUpper(r.apiClient.Scope) != "CLIENT" && !hasClientOverride {
 		resp.Diagnostics.AddError("Resources can only be created at Client level", "Use a client-scoped provider configuration or specify the client using unique ID.")
 		return
