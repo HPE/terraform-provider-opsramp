@@ -87,11 +87,16 @@ func (r *ServicemapResourceLink) Create(ctx context.Context, req resource.Create
 		return
 	}
 
+	tenantId := r.apiClient.TenantId
+	if !plan.Client.IsNull() && plan.Client.ValueString() != "" {
+		tenantId = plan.Client.ValueString()
+	}
+
 	// Use the JSON from the plan
 	CreateServicemapLink := translateLinkPlanToModel(plan)
 
 	// Create the Servicemap in the backend
-	_, err := r.apiClient.CreateServicemapLink(CreateServicemapLink)
+	_, err := r.apiClient.CreateServicemapLink(tenantId, CreateServicemapLink)
 	if err != nil {
 		resp.Diagnostics.AddError("Create Error", err.Error())
 		return
@@ -111,6 +116,11 @@ func (r *ServicemapResourceLink) Read(ctx context.Context, req resource.ReadRequ
 		return
 	}
 
+	tenantId := r.apiClient.TenantId
+	if !state.Client.IsNull() && state.Client.ValueString() != "" {
+		tenantId = state.Client.ValueString()
+	}
+
 	serviceMapLink := client.CreateServicemapLink{
 		Id: state.Link.ValueString(),
 		Parent: &client.Parent{
@@ -118,7 +128,7 @@ func (r *ServicemapResourceLink) Read(ctx context.Context, req resource.ReadRequ
 		},
 	}
 
-	backendServicemapLink, err := r.apiClient.GetServicemapLink(serviceMapLink)
+	backendServicemapLink, err := r.apiClient.GetServicemapLink(tenantId, serviceMapLink)
 	if err != nil {
 		resp.Diagnostics.AddError("Read Error", err.Error())
 		return
@@ -157,9 +167,14 @@ func (r *ServicemapResourceLink) Delete(ctx context.Context, req resource.Delete
 		return
 	}
 
+	tenantId := r.apiClient.TenantId
+	if !state.Client.IsNull() && state.Client.ValueString() != "" {
+		tenantId = state.Client.ValueString()
+	}
+
 	servicemapLink := translateLinkPlanToModel(state)
 
-	err := r.apiClient.DeleteServicemapLink(servicemapLink)
+	err := r.apiClient.DeleteServicemapLink(tenantId, servicemapLink)
 	if err != nil {
 		resp.Diagnostics.AddError("Delete Error", err.Error())
 		return
@@ -193,4 +208,28 @@ type ServicemapLinkModel struct {
 	Client types.String `tfsdk:"client"`
 	Parent types.String `tfsdk:"parent"`
 	Link   types.String `tfsdk:"link"`
+}
+
+func (r *ServicemapResourceLink) ModifyPlan(ctx context.Context, req resource.ModifyPlanRequest, resp *resource.ModifyPlanResponse) {
+	// Call base implementation
+	r.BaseResource.ModifyPlan(ctx, req, resp)
+
+	// Don't modify plan during destroy
+	if req.Plan.Raw.IsNull() {
+		return
+	}
+
+	var plan, state ServicemapLinkModel
+	diags := req.Plan.Get(ctx, &plan)
+	resp.Diagnostics.Append(diags...)
+	req.State.Get(ctx, &state)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	hasClientOverride := !plan.Client.IsNull() && (plan.Client.IsUnknown() || strings.TrimSpace(plan.Client.ValueString()) != "")
+	if strings.ToUpper(r.apiClient.Scope) != "CLIENT" && !hasClientOverride {
+		resp.Diagnostics.AddError("ServiceMap Links can only be created at Client level", "Use a client-scoped provider configuration or specify the client using unique ID.")
+		return
+	}
 }

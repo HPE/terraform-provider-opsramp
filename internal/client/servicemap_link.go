@@ -11,7 +11,7 @@ import (
 
 // CreateServicemapLink - Create new Servicemap Link
 // api: POST /api/v2/tenants/{clientId}/serviceGroups/link
-func (c *OpsRampClient) CreateServicemapLink(servicemaplink CreateServicemapLink) (*CreateServicemapLink, error) {
+func (c *OpsRampClient) CreateServicemapLink(tenantId string, servicemaplink CreateServicemapLink) (*CreateServicemapLink, error) {
 
 	// Convert Request Data/Body to JSON
 	payload, err := json.Marshal([]CreateServicemapLink{servicemaplink})
@@ -20,7 +20,7 @@ func (c *OpsRampClient) CreateServicemapLink(servicemaplink CreateServicemapLink
 	}
 
 	// Prepare the URL, Method and Payload fo the Client
-	apiUrl := fmt.Sprintf("%s/api/v2/tenants/%s/serviceGroups/link", c.BaseUrl, c.TenantId)
+	apiUrl := fmt.Sprintf("%s/api/v2/tenants/%s/serviceGroups/link", c.BaseUrl, tenantId)
 	method := "POST"
 
 	// Create a new Request
@@ -36,10 +36,10 @@ func (c *OpsRampClient) CreateServicemapLink(servicemaplink CreateServicemapLink
 }
 
 // GetServicemap - Get existing Servicemap
-func (c *OpsRampClient) GetServicemapLink(serviceMapLink CreateServicemapLink) (*CreateServicemapLink, error) {
+func (c *OpsRampClient) GetServicemapLink(tenantId string, serviceMapLink CreateServicemapLink) (*CreateServicemapLink, error) {
 
 	// Prepare the URL, Method and Payload fo the Client
-	apiUrl := fmt.Sprintf("%s/api/v2/tenants/%s/serviceGroups/%s/childs/search", c.BaseUrl, c.TenantId, serviceMapLink.Parent.Id)
+	apiUrl := fmt.Sprintf("%s/api/v2/tenants/%s/serviceGroups/%s/childs/search", c.BaseUrl, tenantId, serviceMapLink.Parent.Id)
 	method := "GET"
 
 	response, err := c.NewJsonRequest(method, apiUrl, nil)
@@ -73,10 +73,10 @@ func (c *OpsRampClient) GetServicemapLink(serviceMapLink CreateServicemapLink) (
 }
 
 // DeleteServicemapLink - DeleteServicemapLink
-func (c *OpsRampClient) DeleteServicemapLink(serviceMapLink CreateServicemapLink) error {
+func (c *OpsRampClient) DeleteServicemapLink(tenantId string, serviceMapLink CreateServicemapLink) error {
 
 	// Prepare the URL, Method and Payload fo the Client
-	apiUrl := fmt.Sprintf("%s/api/v2/tenants/%s/serviceGroups/unLink/%s/%s", c.BaseUrl, c.TenantId, serviceMapLink.Parent.Id, serviceMapLink.Id)
+	apiUrl := fmt.Sprintf("%s/api/v2/tenants/%s/serviceGroups/unLink/%s/%s", c.BaseUrl, tenantId, serviceMapLink.Parent.Id, serviceMapLink.Id)
 	method := "DELETE"
 
 	// Create a new Request

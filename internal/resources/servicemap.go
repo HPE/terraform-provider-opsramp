@@ -383,3 +383,27 @@ type ServicemapModel struct {
 	ThresholdType  types.String   `tfsdk:"threshold_type"`
 	ThresholdLimit types.Int64    `tfsdk:"threshold_limit"`
 }
+
+func (r *ServicemapResource) ModifyPlan(ctx context.Context, req resource.ModifyPlanRequest, resp *resource.ModifyPlanResponse) {
+	// Call base implementation
+	r.BaseResource.ModifyPlan(ctx, req, resp)
+
+	// Don't modify plan during destroy
+	if req.Plan.Raw.IsNull() {
+		return
+	}
+
+	var plan, state ServicemapModel
+	diags := req.Plan.Get(ctx, &plan)
+	resp.Diagnostics.Append(diags...)
+	req.State.Get(ctx, &state)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	hasClientOverride := !plan.Client.IsNull() && (plan.Client.IsUnknown() || strings.TrimSpace(plan.Client.ValueString()) != "")
+	if strings.ToUpper(r.apiClient.Scope) != "CLIENT" && !hasClientOverride {
+		resp.Diagnostics.AddError("ServiceMaps can only be created at Client level", "Use a client-scoped provider configuration or specify the client using unique ID.")
+		return
+	}
+}
