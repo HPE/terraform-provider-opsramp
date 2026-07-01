@@ -1,4 +1,4 @@
-package provider
+package hpeprovider
 
 import (
 	internalprovider "github.com/HPE/terraform-provider-opsramp/internal/provider"
