@@ -4,6 +4,13 @@
 (C) Copyright 2026 Hewlett Packard Enterprise Development LP
 -->
 
+> [!IMPORTANT]
+> **This repository has been deprecated and archived.**
+>
+> Development has moved to the unified HPE Terraform provider: **[HPE/terraform-provider-hpe](https://github.com/HPE/terraform-provider-hpe)**.
+>
+> This repository will receive no further updates, fixes, or releases. Please migrate to [HPE/terraform-provider-hpe](https://github.com/HPE/terraform-provider-hpe) for continued support and updates.
+
 A [Terraform](https://www.terraform.io/) provider to manage resources via the [OpsRamp](https://www.opsramp.com/) REST API, built on the [Terraform Plugin Framework](https://github.com/hashicorp/terraform-plugin-framework).
 
 ## Features
